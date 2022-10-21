@@ -29,23 +29,12 @@ func ParseOSMData(config Config) bool {
 	ways := objects[1]
 	relations := objects[2]
 
-	// parallel processing
-	for _, node := range nodes {
-		ParseOSMNode(node)
-	}
-	nodes = nil
-	for _, way := range ways {
-		ParseOSMWay(way)
-	}
-	for _, restriction := range relations {
-		res := ParseOSMRestriction(restriction)
-		if res != nil {
-			fmt.Println(res)
-		}
-	}
-	// parallel processing
+	// parsing all objects
+	allNode := ProcessNodeObjs(nodes)
+	allWay := ProcessWayObjs(ways)
+	allRestriction := ProcessRestrictionObjs(relations)
 
-	//
+	fmt.Println(len(allNode), len(allWay), len(allRestriction))
 
 	// filter: used node by way
 	// sorting nodes (all nodes)

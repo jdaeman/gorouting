@@ -15,6 +15,8 @@ type ParsingNode struct {
 type ParsingWay struct {
 	ID    int
 	Nodes []int
+
+	Oneway bool
 	// ...
 }
 
@@ -59,6 +61,13 @@ func ParseOSMWay(_way osm.Object) *ParsingWay {
 	ret.Nodes = make([]int, 0, len(way.Nodes))
 	for _, node := range way.Nodes {
 		ret.Nodes = append(ret.Nodes, int(node.ID))
+	}
+
+	oneway, _ := FindTag(&way.Tags, "oneway")
+	if oneway == "yes" {
+		ret.Oneway = true
+	} else {
+		ret.Oneway = false
 	}
 
 	// ... other attribution
