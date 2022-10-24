@@ -2,7 +2,6 @@ package extract
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
@@ -29,12 +28,9 @@ func ParseOSMData(config Config) bool {
 	ways := objects[1]
 	relations := objects[2]
 
-	// parsing all objects
-	allNode := ProcessNodeObjs(nodes)
-	allWay := ProcessWayObjs(ways)
-	allRestriction := ProcessRestrictionObjs(relations)
-
-	fmt.Println(len(allNode), len(allWay), len(allRestriction))
+	extractor := NewExtractor(nodes, ways, relations)
+	extractor.ProcessOSMNodes()
+	extractor.ProcessOSMWays()
 
 	// filter: used node by way
 	// sorting nodes (all nodes)

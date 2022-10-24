@@ -6,112 +6,181 @@ import (
 	"github.com/paulmach/osm"
 )
 
-type ProcNode struct {
+type ExternalNode struct {
 	Id int
 }
 
-type ProcEdge struct {
+type ExternalEdge struct {
 	From int
 	To   int
 
 	Oneway bool
 }
 
-func ProcessNodeObjs(objs osm.Objects) []ParsingNode {
-	allnode := make([]ParsingNode, 0, len(objs))
+type Extractor struct {
+	osmNodes        osm.Objects
+	osmWays         osm.Objects
+	osmRestrictions osm.Objects
 
-	for _, node := range objs {
+	AllNodes []ParsingNode
+	AllEdges []ParsingWay
+
+	UsedNodes []ExternalNode
+	UsedEdges []ExternalEdge
+
+	InternalNodes []NodeBasedNode
+	InternalEdges []NodeBasedEdge
+}
+
+type ExtractorInterface interface {
+	//
+	ProcessOSMNodes() int
+	ProcessOSMWays()
+	ProcessOSMRestrictions() bool
+
+	//
+	ProcessNodes()
+	ProcessEdges()
+	processEdge(edge *ParsingWay)
+
+	//
+	PrepareData()
+	prepareNodes()
+	prepareEdges()
+}
+
+func NewExtractor(nodes, ways, restrictions osm.Objects) *Extractor {
+	ret := &Extractor{}
+
+	ret.osmNodes = nodes
+	ret.osmWays = ways
+	ret.osmRestrictions = restrictions
+
+	return ret
+}
+
+func (extractor *Extractor) ProcessOSMNodes() int {
+	osmNodes := &extractor.osmNodes
+	allNodes := &extractor.AllNodes
+
+	*allNodes = make([]ParsingNode, 0, len(*osmNodes))
+
+	for _, node := range *osmNodes {
 		resultNode := ParseOSMNode(node)
-		allnode = append(allnode, *resultNode)
+		*allNodes = append(*allNodes, *resultNode)
 	}
 
-	return allnode
+	extractor.osmNodes = nil
+	return len(*allNodes)
 }
 
-func ProcessWayObjs(objs osm.Objects) []ParsingWay {
-	allway := make([]ParsingWay, 0, len(objs))
-	for _, way := range objs {
+func (extractor *Extractor) ProcessOSMWays() int {
+	osmWays := &extractor.osmWays
+	allEdges := &extractor.AllEdges
+
+	*allEdges = make([]ParsingWay, 0, len(*osmWays))
+	for _, way := range *osmWays {
 		resultWay := ParseOSMWay(way)
-		allway = append(allway, *resultWay)
+		*allEdges = append(*allEdges, *resultWay)
 	}
 
-	return allway
+	extractor.osmWays = nil
+	return len(*allEdges)
 }
 
-func ProcessRestrictionObjs(objs osm.Objects) []ParsingRestriction {
-	allRestriction := make([]ParsingRestriction, 0, len(objs))
-	for _, restriction := range objs {
-		resultRestriction := ParseOSMRestriction(restriction)
-		allRestriction = append(allRestriction, *resultRestriction)
-	}
+// func ProcessOSMRestriction(objs osm.Objects) []ParsingRestriction {
+// 	allRestriction := make([]ParsingRestriction, 0, len(objs))
+// 	for _, restriction := range objs {
+// 		resultRestriction := ParseOSMRestriction(restriction)
+// 		allRestriction = append(allRestriction, *resultRestriction)
+// 	}
 
-	return allRestriction
-}
+// 	return allRestriction
+// }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func ProcessNode(node ParsingNode) {
+func (extractor *Extractor) ProcessNodes() {
 	// do nothing
 }
 
-func ProcessWay(way ParsingWay) []ProcEdge {
-	if len(way.Nodes) <= 1 {
-		return nil
+func (extractor *Extractor) processEdge(edge *ParsingWay) {
+	if len(edge.Nodes) <= 1 {
+		return
 	}
 
-	nodes := make([]ProcNode, 0, len(way.Nodes))
-	edges := make([]ProcEdge, 0, len(way.Nodes)-1)
+	usedNodes := &extractor.UsedNodes
+	usedEdges := &extractor.UsedEdges
 
-	for v := 0; v+1 < len(way.Nodes); v++ {
-		from, to := way.Nodes[v], way.Nodes[v+1]
-		edges = append(edges, ProcEdge{from, to, way.Oneway})
-		nodes = append(nodes, ProcNode{from})
-		if v+1 == len(way.Nodes)-1 {
-			nodes = append(nodes, ProcNode{to})
-		}
+	from, to := 0, 0
+	for v := 0; v+1 < len(edge.Nodes); v++ {
+		from = edge.Nodes[v]
+		to = edge.Nodes[v+1]
+
+		*usedEdges = append(*usedEdges, ExternalEdge{from, to, edge.Oneway})
+		*usedNodes = append(*usedNodes, ExternalNode{from})
 	}
-
-	return edges
+	*usedNodes = append(*usedNodes, ExternalNode{to})
 }
 
-func PrepareData(nodes []ProcNode, edges []ProcEdge) {
+func (extractor *Extractor) ProcessEdges() {
+	allEdges := &extractor.AllEdges
+	usedNodes := &extractor.UsedNodes
+	usedEdges := &extractor.UsedEdges
+
+	*usedNodes = make([]ExternalNode, 0)
+	*usedEdges = make([]ExternalEdge, 0)
+
+	for _, edge := range *allEdges {
+		extractor.processEdge(&edge)
+	}
+}
+
+func (extractor *Extractor) PrepareData() {
 	// node
-	// edges
+	extractor.prepareNodes()
+	// edges...
 }
 
-func prepareNodes(nodes []ProcNode) {
-	// sort by osm node id
-	sort.Slice(nodes, func(l, r int) bool {
-		return nodes[l].Id < nodes[r].Id
+func (extractor *Extractor) prepareNodes() {
+	allNodes := extractor.AllNodes
+	usedNodes := extractor.UsedNodes
+
+	// sorted by osm node id
+	sort.Slice(usedNodes, func(l, r int) bool {
+		return usedNodes[l].Id < usedNodes[r].Id
+	})
+	sort.Slice(allNodes, func(l, r int) bool {
+		return allNodes[l].ID < allNodes[r].ID
 	})
 
-	// erase duplicated nodes
-	nodes = eraseDuplicatedNode(nodes)
-}
-
-func eraseDuplicatedNode(nodes []ProcNode) []ProcNode {
-
-	index, value := 0, nodes[0]
-	cpy := nodes
-	for len(cpy) > 0 {
-		index += 1
-
-		idx := sort.Search(len(cpy), func(idx int) bool {
-			return cpy[idx].Id > value.Id
-		})
-
-		if idx >= len(cpy) {
-			cpy = nil
-		} else {
-			nodes[index] = cpy[idx]
-			value = cpy[idx]
-			cpy = cpy[idx:]
+	// remove duplicated elements
+	uniqueNodes := make([]ExternalNode, 0, len(usedNodes)/2)
+	for _, node := range usedNodes {
+		// find node id
+		tail := len(uniqueNodes) - 1
+		if tail == -1 || uniqueNodes[tail].Id != node.Id {
+			uniqueNodes = append(uniqueNodes, node)
 		}
 	}
 
-	return nodes[:index]
+	// remove duplicated locations
+	extractor.UsedNodes = nil
+	uniqueGeos := make([]ParsingNode, 0, len(usedNodes)/2)
+	for _, node := range uniqueNodes {
+		// find node location
+		idx := sort.Search(len(allNodes), func(idx int) bool {
+			return allNodes[idx].ID >= node.Id
+		})
+		if idx < len(allNodes) && allNodes[idx].ID == node.Id {
+			uniqueGeos = append(uniqueGeos, allNodes[idx])
+		}
+	}
+
+	extractor.UsedNodes = uniqueNodes
+	extractor.AllNodes = uniqueGeos
 }
 
-func prepareEdges(edges []ProcEdge) {
+func (extractor *Extractor) prepareEdges() {
 
 }

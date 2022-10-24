@@ -7,6 +7,34 @@ import (
 	"testing"
 )
 
+func TestExtractor(t *testing.T) {
+	config := "data/map.osm"
+	datas, err := extract.ReadOSM(config)
+
+	if err != nil {
+		t.Fail()
+	}
+
+	extractor := extract.NewExtractor(datas[0], datas[1], datas[2])
+	extractor.ProcessOSMNodes()
+	extractor.ProcessOSMWays()
+
+	fmt.Println("OSM Node count", len(extractor.AllNodes))
+	fmt.Println("OSM Edge count", len(extractor.AllEdges))
+
+	extractor.ProcessNodes()
+	extractor.ProcessEdges()
+
+	fmt.Println("node count", len(extractor.UsedNodes))
+	fmt.Println("edge count", len(extractor.UsedEdges))
+
+	extractor.PrepareData()
+
+	fmt.Println("Unique loc count", len(extractor.AllNodes))
+	fmt.Println("Unique node count", len(extractor.UsedNodes))
+
+}
+
 func TestReadOSM(t *testing.T) {
 	config := "data/map.osm"
 	datas, err := extract.ReadOSM(config)
