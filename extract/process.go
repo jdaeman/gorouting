@@ -1,6 +1,7 @@
 package extract
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/paulmach/osm"
@@ -140,6 +141,7 @@ func (extractor *Extractor) PrepareData() {
 	// node
 	extractor.prepareNodes()
 	// edges...
+	extractor.prepareEdges()
 }
 
 func (extractor *Extractor) prepareNodes() {
@@ -181,6 +183,56 @@ func (extractor *Extractor) prepareNodes() {
 	extractor.AllNodes = uniqueGeos
 }
 
+func (extractor *Extractor) getInternalNodeId(osmId int) int {
+
+	count := len(extractor.UsedNodes)
+
+	newId := sort.Search(count, func(idx int) bool {
+		return extractor.UsedNodes[idx].Id >= osmId
+	})
+
+	if newId < count && extractor.UsedNodes[newId].Id == osmId {
+		return newId
+	} else {
+		return -1
+	}
+}
+
 func (extractor *Extractor) prepareEdges() {
 
+	uncompEdges := &extractor.InternalEdges
+	usedEdges := extractor.UsedEdges
+
+	sort.Slice(usedEdges, func(l, r int) bool {
+		if usedEdges[l].From == usedEdges[r].From {
+			return usedEdges[l].To < usedEdges[r].To
+		}
+		return usedEdges[l].From < usedEdges[r].From
+	})
+
+	*uncompEdges = make([]NodeBasedEdge, 0, len(usedEdges)*2)
+	for _, edge := range usedEdges {
+		from, to := edge.From, edge.To
+		internalFrom, internalTo := extractor.getInternalNodeId(from), extractor.getInternalNodeId(to)
+
+		if internalFrom == -1 || internalTo == -1 {
+			fmt.Println("invalid node found...")
+			continue
+		}
+
+		*uncompEdges = append(*uncompEdges, NodeBasedEdge{internalFrom, internalTo})
+		if edge.Oneway == false {
+			*uncompEdges = append(*uncompEdges, NodeBasedEdge{internalTo, internalFrom})
+		}
+	}
+
+	sort.Slice(*uncompEdges, func(l, r int) bool {
+		if (*uncompEdges)[l].From == (*uncompEdges)[r].From {
+			return (*uncompEdges)[l].To < (*uncompEdges)[r].To
+		}
+
+		return (*uncompEdges)[l].From < (*uncompEdges)[r].From
+	})
+
+	extractor.UsedEdges = nil
 }

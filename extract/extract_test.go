@@ -33,6 +33,7 @@ func TestExtractor(t *testing.T) {
 	fmt.Println("Unique loc count", len(extractor.AllNodes))
 	fmt.Println("Unique node count", len(extractor.UsedNodes))
 
+	fmt.Println("NodeBasedEdge count", len(extractor.InternalEdges))
 }
 
 func TestReadOSM(t *testing.T) {
