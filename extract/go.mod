@@ -10,3 +10,7 @@ require (
 	github.com/paulmach/protoscan v0.2.1 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 )
+
+
+require util v0.0.0
+replace util v0.0.0 => ../util

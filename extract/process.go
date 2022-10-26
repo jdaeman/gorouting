@@ -3,6 +3,7 @@ package extract
 import (
 	"fmt"
 	"sort"
+	"util"
 
 	"github.com/paulmach/osm"
 )
@@ -18,6 +19,15 @@ type ExternalEdge struct {
 	Oneway bool
 }
 
+type InternalEdge struct {
+	From int
+	To   int
+
+	Distance int
+	Forward  bool
+	Reverse  bool
+}
+
 type Extractor struct {
 	osmNodes        osm.Objects
 	osmWays         osm.Objects
@@ -29,8 +39,7 @@ type Extractor struct {
 	UsedNodes []ExternalNode
 	UsedEdges []ExternalEdge
 
-	InternalNodes []NodeBasedNode
-	InternalEdges []NodeBasedEdge
+	InternalEdges []InternalEdge
 }
 
 type ExtractorInterface interface {
@@ -202,6 +211,7 @@ func (extractor *Extractor) prepareEdges() {
 
 	uncompEdges := &extractor.InternalEdges
 	usedEdges := extractor.UsedEdges
+	geoNodes := extractor.AllNodes
 
 	sort.Slice(usedEdges, func(l, r int) bool {
 		if usedEdges[l].From == usedEdges[r].From {
@@ -210,7 +220,7 @@ func (extractor *Extractor) prepareEdges() {
 		return usedEdges[l].From < usedEdges[r].From
 	})
 
-	*uncompEdges = make([]NodeBasedEdge, 0, len(usedEdges)*2)
+	*uncompEdges = make([]InternalEdge, 0, len(usedEdges)*2)
 	for _, edge := range usedEdges {
 		from, to := edge.From, edge.To
 		internalFrom, internalTo := extractor.getInternalNodeId(from), extractor.getInternalNodeId(to)
@@ -220,10 +230,12 @@ func (extractor *Extractor) prepareEdges() {
 			continue
 		}
 
-		*uncompEdges = append(*uncompEdges, NodeBasedEdge{internalFrom, internalTo})
-		if edge.Oneway == false {
-			*uncompEdges = append(*uncompEdges, NodeBasedEdge{internalTo, internalFrom})
-		}
+		coord1 := [2]float64{geoNodes[internalFrom].X, geoNodes[internalFrom].Y}
+		coord2 := [2]float64{geoNodes[internalTo].X, geoNodes[internalTo].Y}
+		distance := int(util.HaversineDistance(coord1, coord2))
+
+		*uncompEdges = append(*uncompEdges, InternalEdge{internalFrom, internalTo, distance, true, false})
+		*uncompEdges = append(*uncompEdges, InternalEdge{internalTo, internalFrom, distance, !edge.Oneway, edge.Oneway})
 	}
 
 	sort.Slice(*uncompEdges, func(l, r int) bool {
