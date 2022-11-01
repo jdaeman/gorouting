@@ -1,70 +1,42 @@
 package extract
 
 import (
-	"fmt"
+	"files"
+	"graph"
+	"log"
 	"sort"
 	"util"
 
 	"github.com/paulmach/osm"
 )
 
-type ExternalNode struct {
-	Id int
-}
-
-type ExternalEdge struct {
-	From int
-	To   int
-
-	Oneway bool
-}
-
-type InternalEdge struct {
-	From int
-	To   int
-
-	Distance int
-	Forward  bool
-	Reverse  bool
-}
-
 type Extractor struct {
+	rawFilePath string
+
+	// raw osm data
 	osmNodes        osm.Objects
 	osmWays         osm.Objects
 	osmRestrictions osm.Objects
 
-	AllNodes []ParsingNode
-	AllEdges []ParsingWay
+	// parsing raw osm data
+	AllNodes        []graph.ExternalNode
+	AllEdges        []graph.ResultWay
+	EdgeAnnotations []graph.EdgeAnnotation
 
-	UsedNodes []ExternalNode
-	UsedEdges []ExternalEdge
+	UsedNodes []int64
+	UsedEdges []graph.ExternalEdge
 
-	InternalEdges []InternalEdge
+	InternalEdges []graph.InternalEdge
 }
 
-type ExtractorInterface interface {
-	//
-	ProcessOSMNodes() int
-	ProcessOSMWays()
-	ProcessOSMRestrictions() bool
-
-	//
-	ProcessNodes()
-	ProcessEdges()
-	processEdge(edge *ParsingWay)
-
-	//
-	PrepareData()
-	prepareNodes()
-	prepareEdges()
-}
-
-func NewExtractor(nodes, ways, restrictions osm.Objects) *Extractor {
+func NewExtractor(nodes, ways, restrictions osm.Objects, output string) *Extractor {
 	ret := &Extractor{}
 
 	ret.osmNodes = nodes
 	ret.osmWays = ways
 	ret.osmRestrictions = restrictions
+
+	ret.rawFilePath = output
 
 	return ret
 }
@@ -73,7 +45,7 @@ func (extractor *Extractor) ProcessOSMNodes() int {
 	osmNodes := &extractor.osmNodes
 	allNodes := &extractor.AllNodes
 
-	*allNodes = make([]ParsingNode, 0, len(*osmNodes))
+	*allNodes = make([]graph.ExternalNode, 0, len(*osmNodes))
 
 	for _, node := range *osmNodes {
 		resultNode := ParseOSMNode(node)
@@ -88,9 +60,12 @@ func (extractor *Extractor) ProcessOSMWays() int {
 	osmWays := &extractor.osmWays
 	allEdges := &extractor.AllEdges
 
-	*allEdges = make([]ParsingWay, 0, len(*osmWays))
+	*allEdges = make([]graph.ResultWay, 0, len(*osmWays))
 	for _, way := range *osmWays {
 		resultWay := ParseOSMWay(way)
+		if resultWay == nil {
+			continue
+		}
 		*allEdges = append(*allEdges, *resultWay)
 	}
 
@@ -98,59 +73,99 @@ func (extractor *Extractor) ProcessOSMWays() int {
 	return len(*allEdges)
 }
 
-// func ProcessOSMRestriction(objs osm.Objects) []ParsingRestriction {
-// 	allRestriction := make([]ParsingRestriction, 0, len(objs))
-// 	for _, restriction := range objs {
-// 		resultRestriction := ParseOSMRestriction(restriction)
-// 		allRestriction = append(allRestriction, *resultRestriction)
-// 	}
-
-// 	return allRestriction
-// }
-
-///////////////////////////////////////////////////////////////////////////////
+func (extractor *Extractor) ProcessOSMRestriction() int {
+	return 0
+}
 
 func (extractor *Extractor) ProcessNodes() {
 	// do nothing
 }
 
-func (extractor *Extractor) processEdge(edge *ParsingWay) {
+func (extractor *Extractor) processEdge(edge *graph.ResultWay) {
 	if len(edge.Nodes) <= 1 {
 		return
 	}
 
 	usedNodes := &extractor.UsedNodes
 	usedEdges := &extractor.UsedEdges
+	edgeAnnotations := &extractor.EdgeAnnotations
+	annoId := len(*edgeAnnotations)
 
-	from, to := 0, 0
+	var from, to int64
+	var segIndex int16
+
+	segIndex = 0
 	for v := 0; v+1 < len(edge.Nodes); v++ {
 		from = edge.Nodes[v]
 		to = edge.Nodes[v+1]
 
-		*usedEdges = append(*usedEdges, ExternalEdge{from, to, edge.Oneway})
-		*usedNodes = append(*usedNodes, ExternalNode{from})
+		edge := graph.ExternalEdge{Id: edge.Id, From: from, To: to, Oneway: edge.Oneway, AnnoId: int32(annoId), SegIndex: segIndex}
+		*usedEdges = append(*usedEdges, edge)
+		*usedNodes = append(*usedNodes, from)
+		segIndex += 1
 	}
-	*usedNodes = append(*usedNodes, ExternalNode{to})
+	*usedNodes = append(*usedNodes, to)
+
+	*edgeAnnotations = append(*edgeAnnotations, graph.EdgeAnnotation{Id: edge.Id})
 }
 
 func (extractor *Extractor) ProcessEdges() {
 	allEdges := &extractor.AllEdges
 	usedNodes := &extractor.UsedNodes
 	usedEdges := &extractor.UsedEdges
+	edgeAnnotations := &extractor.EdgeAnnotations
 
-	*usedNodes = make([]ExternalNode, 0)
-	*usedEdges = make([]ExternalEdge, 0)
+	*usedNodes = make([]int64, 0)
+	*usedEdges = make([]graph.ExternalEdge, 0)
+	*edgeAnnotations = make([]graph.EdgeAnnotation, 0)
 
 	for _, edge := range *allEdges {
 		extractor.processEdge(&edge)
 	}
 }
 
+func (extractor *Extractor) writeNodes() {
+	log.Println("Location node count", len(extractor.AllNodes))
+	log.Println("Unique node count", len(extractor.UsedNodes))
+
+	newFile := files.ToDataPath(extractor.rawFilePath, ".geos")
+	err := files.StoreGeoNodes(newFile, extractor.AllNodes)
+	if err == nil {
+		log.Println("Saved to", newFile)
+	} else {
+		log.Println("ERROR", err)
+	}
+}
+
+func (extractor *Extractor) writeEdges() {
+	log.Println("Uncomp edge count", len(extractor.InternalEdges))
+	log.Println("Edge annotation count", len(extractor.EdgeAnnotations))
+
+	newFile := files.ToDataPath(extractor.rawFilePath, ".uncomp")
+	err := files.StoreUncompEdges(newFile, extractor.InternalEdges)
+	if err == nil {
+		log.Println("Saved to", newFile)
+	} else {
+		log.Println("ERROR", err)
+	}
+
+	newFile = files.ToDataPath(extractor.rawFilePath, ".anno")
+	err = files.StoreEdgeAnnotations(newFile, extractor.EdgeAnnotations)
+	if err == nil {
+		log.Println("Saved to", newFile)
+	} else {
+		log.Println("ERROR", err)
+	}
+}
+
 func (extractor *Extractor) PrepareData() {
 	// node
 	extractor.prepareNodes()
+	extractor.writeNodes()
+
 	// edges...
 	extractor.prepareEdges()
+	extractor.writeEdges()
 }
 
 func (extractor *Extractor) prepareNodes() {
@@ -159,31 +174,31 @@ func (extractor *Extractor) prepareNodes() {
 
 	// sorted by osm node id
 	sort.Slice(usedNodes, func(l, r int) bool {
-		return usedNodes[l].Id < usedNodes[r].Id
+		return usedNodes[l] < usedNodes[r]
 	})
 	sort.Slice(allNodes, func(l, r int) bool {
-		return allNodes[l].ID < allNodes[r].ID
+		return allNodes[l].Id < allNodes[r].Id
 	})
 
 	// remove duplicated elements
-	uniqueNodes := make([]ExternalNode, 0, len(usedNodes)/2)
+	uniqueNodes := make([]int64, 0, len(usedNodes)/2)
 	for _, node := range usedNodes {
 		// find node id
 		tail := len(uniqueNodes) - 1
-		if tail == -1 || uniqueNodes[tail].Id != node.Id {
+		if tail == -1 || uniqueNodes[tail] != node {
 			uniqueNodes = append(uniqueNodes, node)
 		}
 	}
 
 	// remove duplicated locations
 	extractor.UsedNodes = nil
-	uniqueGeos := make([]ParsingNode, 0, len(usedNodes)/2)
+	uniqueGeos := make([]graph.ExternalNode, 0, len(usedNodes)/2)
 	for _, node := range uniqueNodes {
 		// find node location
 		idx := sort.Search(len(allNodes), func(idx int) bool {
-			return allNodes[idx].ID >= node.Id
+			return allNodes[idx].Id >= node
 		})
-		if idx < len(allNodes) && allNodes[idx].ID == node.Id {
+		if idx < len(allNodes) && allNodes[idx].Id == node {
 			uniqueGeos = append(uniqueGeos, allNodes[idx])
 		}
 	}
@@ -192,16 +207,14 @@ func (extractor *Extractor) prepareNodes() {
 	extractor.AllNodes = uniqueGeos
 }
 
-func (extractor *Extractor) getInternalNodeId(osmId int) int {
-
+func (extractor *Extractor) getInternalNodeId(osmId int64) int32 {
 	count := len(extractor.UsedNodes)
-
 	newId := sort.Search(count, func(idx int) bool {
-		return extractor.UsedNodes[idx].Id >= osmId
+		return extractor.UsedNodes[idx] >= osmId
 	})
 
-	if newId < count && extractor.UsedNodes[newId].Id == osmId {
-		return newId
+	if newId < count && extractor.UsedNodes[newId] == osmId {
+		return int32(newId)
 	} else {
 		return -1
 	}
@@ -220,22 +233,29 @@ func (extractor *Extractor) prepareEdges() {
 		return usedEdges[l].From < usedEdges[r].From
 	})
 
-	*uncompEdges = make([]InternalEdge, 0, len(usedEdges)*2)
+	*uncompEdges = make([]graph.InternalEdge, 0, len(usedEdges)*2)
 	for _, edge := range usedEdges {
 		from, to := edge.From, edge.To
 		internalFrom, internalTo := extractor.getInternalNodeId(from), extractor.getInternalNodeId(to)
 
 		if internalFrom == -1 || internalTo == -1 {
-			fmt.Println("invalid node found...")
-			continue
+			panic("Invalid node found from edge")
 		}
 
 		coord1 := [2]float64{geoNodes[internalFrom].X, geoNodes[internalFrom].Y}
 		coord2 := [2]float64{geoNodes[internalTo].X, geoNodes[internalTo].Y}
-		distance := int(util.HaversineDistance(coord1, coord2))
+		distance := int32(util.HaversineDistance(coord1, coord2))
+		segIndex := edge.SegIndex
 
-		*uncompEdges = append(*uncompEdges, InternalEdge{internalFrom, internalTo, distance, true, false})
-		*uncompEdges = append(*uncompEdges, InternalEdge{internalTo, internalFrom, distance, !edge.Oneway, edge.Oneway})
+		fwdEdge := graph.InternalEdge{From: internalFrom, To: internalTo, Distance: distance,
+			Forward: true, Reverse: false,
+			AnnoId: edge.AnnoId, SegIndex: segIndex}
+		revEdge := graph.InternalEdge{From: internalTo, To: internalFrom, Distance: distance,
+			Forward: !edge.Oneway, Reverse: edge.Oneway,
+			AnnoId: edge.AnnoId, SegIndex: segIndex}
+
+		*uncompEdges = append(*uncompEdges, fwdEdge)
+		*uncompEdges = append(*uncompEdges, revEdge)
 	}
 
 	sort.Slice(*uncompEdges, func(l, r int) bool {

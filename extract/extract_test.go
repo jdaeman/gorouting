@@ -7,6 +7,21 @@ import (
 	"testing"
 )
 
+func TestCompress(t *testing.T) {
+
+	compressor := extract.NewCompressor("data/map.osm")
+
+	compCount := compressor.Compress()
+
+	fmt.Println("Compressed node count", compCount)
+}
+
+func TestRun(t *testing.T) {
+	config := extract.Config{"data/map.osm"}
+
+	extract.Run(config)
+}
+
 func TestExtractor(t *testing.T) {
 	config := "data/map.osm"
 	datas, err := extract.ReadOSM(config)
@@ -15,7 +30,7 @@ func TestExtractor(t *testing.T) {
 		t.Fail()
 	}
 
-	extractor := extract.NewExtractor(datas[0], datas[1], datas[2])
+	extractor := extract.NewExtractor(datas[0], datas[1], datas[2], config)
 	extractor.ProcessOSMNodes()
 	extractor.ProcessOSMWays()
 

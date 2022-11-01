@@ -10,10 +10,22 @@ import (
 )
 
 const (
-	BUFFER_NODE     = 100
-	BUFFER_WAY      = 100
-	BUFFER_RELATION = 100
+	BUFFER_NODE     = 100000
+	BUFFER_WAY      = 100000
+	BUFFER_RELATION = 100000
 )
+
+func Run(config Config) int {
+	ret := ParseOSMData(config)
+	if !ret {
+		return 1
+	}
+
+	// compress edge
+	//
+
+	return 0
+}
 
 func ParseOSMData(config Config) bool {
 	log.Println("Read file from", config.OsmPath)
@@ -27,17 +39,25 @@ func ParseOSMData(config Config) bool {
 	nodes := objects[0]
 	ways := objects[1]
 	relations := objects[2]
+	extractor := NewExtractor(nodes, ways, relations, config.OsmPath)
+	nodes = nil
+	ways = nil
+	relations = nil
+	objects = nil
 
-	extractor := NewExtractor(nodes, ways, relations)
-	extractor.ProcessOSMNodes()
-	extractor.ProcessOSMWays()
+	nodeCount := extractor.ProcessOSMNodes()
+	log.Println("Raw osm node count", nodeCount)
+	wayCount := extractor.ProcessOSMWays()
+	log.Println("Raw osm way count", wayCount)
+	restrictionCount := extractor.ProcessOSMRestriction()
+	log.Println("Raw osm restriction count", restrictionCount)
 
-	// filter: used node by way
-	// sorting nodes (all nodes)
-	// sorting ways
-	// iterate ways
-	//		store used nodes
-	//	sorting used nodes
+	extractor.ProcessNodes()
+	extractor.ProcessEdges()
+	log.Println("Used node count", len(extractor.UsedNodes))
+	log.Println("Used edge count", len(extractor.UsedEdges))
+
+	extractor.PrepareData()
 
 	return true
 }
