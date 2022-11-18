@@ -12,8 +12,9 @@ type EdgeBasedGraphFactory struct {
 	number_of_edge_based_nodes int32
 	nbe_to_ebn_mapping         []int32
 
-	edge_based_nodes []graph.EdgeBasedNode
-	edge_based_edges []graph.EdgeBasedEdge
+	edge_based_node_segments []graph.EdgeBasedNodeSegment
+	edge_based_nodes         []graph.EdgeBasedNode
+	edge_based_edges         []graph.EdgeBasedEdge
 }
 
 func NewEdgeBasedGraphFactory(nbgFactory *NodeBasedGraphFactory) *EdgeBasedGraphFactory {
@@ -53,25 +54,40 @@ func (factory *EdgeBasedGraphFactory) LabelEdgeBasedNodes() int32 {
 // TBD
 // EdgeBasedNodeSegment for RTree (map matching)
 func (factory *EdgeBasedGraphFactory) InsertEdgeBasedNode(u, v int32) {
-	nbg := factory.nbg_factory.GetGraph()
+	nbg_factory := factory.nbg_factory
+	nbg := nbg_factory.GetGraph()
 	mapping := factory.nbe_to_ebn_mapping
+	segments := &factory.edge_based_node_segments
 
-	//edge1 := nbg.FindEdge(u, v)
+	edge1 := nbg.FindEdge(u, v)
 	edge2 := nbg.FindEdge(v, u)
 
-	// edge1
-	if mapping[edge2] != math.MaxInt32 {
-		// not oneway
-		//
+	if mapping[edge1] == math.MaxInt32 {
+		panic("Edge is reverse?")
 	}
 
-	// segments for rtree
+	geometryId := nbg.GetEdgeData(edge1).GeometryId
+	nodes := nbg_factory.GetGeometry(int32(geometryId))
+	segCount := len(nodes)
+
+	for i := 1; i < segCount; i++ {
+		coord1, coord2 := nodes[i-1], nodes[i]
+
+		*segments = append(*segments, graph.EdgeBasedNodeSegment{
+			Forward_id:  mapping[edge1],
+			Backward_id: mapping[edge2],
+			U:           coord1,
+			V:           coord2,
+		})
+	}
 }
 
 // TBD
 func (factory *EdgeBasedGraphFactory) GenerateEdgeExpandedNodes() {
 	nbg := factory.nbg_factory.GetGraph()
 	mapping := factory.nbe_to_ebn_mapping
+	segments := &factory.edge_based_node_segments
+	*segments = make([]graph.EdgeBasedNodeSegment, 0)
 
 	for u := int32(0); u < nbg.GetNumberOfNodes(); u++ {
 		nbg_edge_id := nbg.BeginEdges(u)
@@ -162,7 +178,7 @@ func (factory *EdgeBasedGraphFactory) Run() {
 	number_of_edge_based_node := factory.LabelEdgeBasedNodes()
 	factory.number_of_edge_based_nodes = number_of_edge_based_node
 
-	//factory.GenerateEdgeExpandedNodes()
+	factory.GenerateEdgeExpandedNodes()
 	factory.GenerateEdgeExpandedEdges()
 }
 

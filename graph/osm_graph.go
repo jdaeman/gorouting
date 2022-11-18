@@ -77,15 +77,16 @@ type InternalNode struct {
 }
 
 type InternalEdge struct {
-	From int32 // indexed node id
-	To   int32 // indexed node id
-
-	AnnoId   int32 // annotation id
-	SegIndex int16
-
+	From     int32 // indexed node id
+	To       int32 // indexed node id
 	Distance int32
+
+	AnnotationId int32
+	GeometryId   int32
+
 	Forward  bool // From -> To. always true
-	Reverse  bool // if edge is oneway, false, From -> To is not, To -> From
+	Backward bool
+	Split    bool
 }
 
 type OsmGraph struct {

@@ -372,13 +372,11 @@ func (extractor *Extractor) getInternalNodeId(osmId int64) int32 {
 }
 
 func (extractor *Extractor) prepareEdges() {
-	edges := &extractor.NodeBasedEdges
 	geoNodes := extractor.AllNodes
-	geometries := &extractor.Geometries
-	annotations := &extractor.EdgeAnnotations
 
-	*geometries = make([]graph.Geometry, 0, len(extractor.AllEdges))
-	*annotations = make([]graph.EdgeAnnotation, 0, len(extractor.AllEdges))
+	fwdEdges := make([]graph.NodeBasedEdge, 0)
+	geometries := make([]graph.Geometry, 0, len(extractor.AllEdges))
+	annotations := make([]graph.EdgeAnnotation, 0, len(extractor.AllEdges))
 
 	// convert osm Way to node_based_edge.
 	for _, edge := range extractor.AllEdges {
@@ -427,14 +425,57 @@ func (extractor *Extractor) prepareEdges() {
 			From: from, To: to,
 			Distance: distance,
 			Forward:  true, Backward: !oneway, // oneway has no backward edge.
-			AnnotationId: int32(len(*annotations)),
-			GeometryId:   uint32(len(*geometries)),
+			AnnotationId: int32(len(annotations)),
+			GeometryId:   uint32(len(geometries)),
 		}
 
-		*edges = append(*edges, fwdEdge)
-		*geometries = append(*geometries, *geometry)
-		*annotations = append(*annotations, *annotation)
+		fwdEdges = append(fwdEdges, fwdEdge)
+		geometries = append(geometries, *geometry)
+		annotations = append(annotations, *annotation)
 	}
+
+	sort.Slice(fwdEdges, func(l, r int) bool {
+		left, right := &fwdEdges[l], &fwdEdges[r]
+		if left.From == right.From {
+			return left.To < right.To
+		}
+		return left.From < right.From
+	})
+
+	// oneway edge... but bidirection
+	//
+	//
+	// for i := 0; i < len(fwdEdges); {
+	// 	startIdx, minIndex := i, i
+	// 	startEdge := &fwdEdges[startIdx]
+
+	// 	for ; i < len(fwdEdges); i++ {
+	// 		curEdge := &fwdEdges[i]
+	// 		if startEdge.From != curEdge.From {
+	// 			break
+	// 		}
+	// 		if startEdge.To != curEdge.To {
+	// 			break
+	// 		}
+	// 		if curEdge.Distance < fwdEdges[minIndex].Distance {
+	// 			minIndex = i
+	// 		}
+
+	// 		fmt.Println(startEdge.From, startEdge.To)
+	// 	}
+
+	// 	for j := startIdx; j < i; j++ {
+	// 		if startIdx == minIndex {
+	// 			continue
+	// 		}
+	// 		fwdEdges[j].From = math.MaxInt32
+	// 		fwdEdges[j].To = math.MaxInt32
+	// 	}
+	// }
+
+	extractor.NodeBasedEdges = fwdEdges
+	extractor.Geometries = geometries
+	extractor.EdgeAnnotations = annotations
 }
 
 func (extractor *Extractor) prepareRestrictions() {

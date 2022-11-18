@@ -10,17 +10,19 @@ type NodeBasedGraphFactory struct {
 	nbg *graph.NodeBasedGraph
 
 	restrictions []graph.InternalRestriction
+	geometries   []graph.Geometry
 }
 
 func NewNodeBasedGraphFactory(datapath string) *NodeBasedGraphFactory {
 	nodes := files.LoadGeoNodes(files.ToDataPath(datapath, files.GEONODE))
 	edges := files.LoadEdges(files.ToDataPath(datapath, files.NBGEDGE))
 	restrictions := files.LoadRestrictions(files.ToDataPath(datapath, files.RESTRICTION))
+	geometries := files.LoadEdgeGeometries(files.ToDataPath(datapath, files.GEOMETRY))
 
 	nodeCount := int32(len(nodes))
 	nbg := graph.NewNodeBasedGraph(nodeCount, edges)
 
-	ret := &NodeBasedGraphFactory{nbg: nbg, restrictions: restrictions}
+	ret := &NodeBasedGraphFactory{nbg: nbg, restrictions: restrictions, geometries: geometries}
 	return ret
 }
 
@@ -89,4 +91,9 @@ func (factory *NodeBasedGraphFactory) IsTurnallowed(from, via, to int32) bool {
 	}
 
 	return true
+}
+
+func (factory *NodeBasedGraphFactory) GetGeometry(geoId int32) []int32 {
+	geoId &= ((1 << 31) - 1)
+	return factory.geometries[geoId].Nodes
 }
