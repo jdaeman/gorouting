@@ -82,7 +82,7 @@ type InternalEdge struct {
 	Distance int32
 
 	AnnotationId int32
-	GeometryId   int32
+	GeometryId   uint32
 
 	Forward  bool // From -> To. always true
 	Backward bool

@@ -25,7 +25,7 @@ func LoadGeoNodes(filepath string) []graph.ResultNode {
 	return ret
 }
 
-func LoadEdges(filepath string) []graph.NodeBasedEdge {
+func LoadEdges(filepath string) []graph.InternalEdge {
 	f, err := os.Open(filepath)
 	if err != nil {
 		panic(err)
@@ -38,7 +38,7 @@ func LoadEdges(filepath string) []graph.NodeBasedEdge {
 		panic("Data count is zero")
 	}
 
-	ret := make([]graph.NodeBasedEdge, count)
+	ret := make([]graph.InternalEdge, count)
 	binary.Read(f, binary.LittleEndian, ret)
 	return ret
 }

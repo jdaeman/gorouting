@@ -34,23 +34,37 @@ type NodeBasedGraph struct {
 }
 
 // split NodeBasedEdge to both direction.
-func directedEdges(edges []NodeBasedEdge) []NodeBasedEdge {
+func directedEdges(edges []InternalEdge) []NodeBasedEdge {
 	directedEdges := make([]NodeBasedEdge, 0, len(edges))
 
 	for _, edge := range edges {
 		if !edge.Forward {
 			panic("invalid node_based_edge")
 		}
-		directedEdges = append(directedEdges, edge)
 
+		newEdge := NodeBasedEdge{
+			From: edge.From, To: edge.To,
+			Forward: edge.Forward, Backward: edge.Backward,
+			Distance:     edge.Distance,
+			AnnotationId: edge.AnnotationId,
+			GeometryId:   edge.GeometryId,
+			Reverse:      false,
+		}
+
+		directedEdges = append(directedEdges, newEdge)
 		// split this edge.
-		// bi-direction: backward is true
-		// oneway: backward is false => reverse is true
-		edge.From, edge.To = edge.To, edge.From
-		edge.Reverse = !edge.Backward
-		edge.GeometryId |= (1 << 31) // msb is set, backward geometry.
-
-		directedEdges = append(directedEdges, edge)
+		if !edge.Split {
+			// normaly,
+			// 1. bidirection way
+			// 2. oneway,
+			// not, below shape
+			//        u  ~> v
+			//          ^--/
+			newEdge.From, newEdge.To = newEdge.To, newEdge.From
+			newEdge.GeometryId |= (1 << 31) // msb is set, backward geometry.
+			newEdge.Reverse = !newEdge.Backward
+			directedEdges = append(directedEdges, newEdge)
+		}
 	}
 
 	// sorted by from node, to node.
@@ -65,11 +79,11 @@ func directedEdges(edges []NodeBasedEdge) []NodeBasedEdge {
 	return directedEdges
 }
 
-func NewNodeBasedGraph(nodes int32, edges []NodeBasedEdge) *NodeBasedGraph {
-	if nodes == 0 || len(edges) == 0 {
+func NewNodeBasedGraph(nodes int32, internalEdges []InternalEdge) *NodeBasedGraph {
+	if nodes == 0 || len(internalEdges) == 0 {
 		return nil
 	}
-	edges = directedEdges(edges)
+	edges := directedEdges(internalEdges)
 
 	// edges must be sorted.
 	number_of_edges := int32(len(edges))

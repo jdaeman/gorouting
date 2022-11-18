@@ -28,7 +28,8 @@ type Extractor struct {
 	UsedNodes []int64
 
 	//
-	NodeBasedEdges  []graph.NodeBasedEdge
+	NodeBasedEdges  []graph.NodeBasedEdge // deprecate
+	InternalEdges   []graph.InternalEdge
 	EdgeAnnotations []graph.EdgeAnnotation
 	Geometries      []graph.Geometry
 
@@ -374,11 +375,12 @@ func (extractor *Extractor) getInternalNodeId(osmId int64) int32 {
 func (extractor *Extractor) prepareEdges() {
 	geoNodes := extractor.AllNodes
 
-	fwdEdges := make([]graph.NodeBasedEdge, 0)
+	//fwdEdges := make([]graph.NodeBasedEdge, 0)
+	_fwdEdges := make([]graph.InternalEdge, 0)
 	geometries := make([]graph.Geometry, 0, len(extractor.AllEdges))
 	annotations := make([]graph.EdgeAnnotation, 0, len(extractor.AllEdges))
 
-	// convert osm Way to node_based_edge.
+	// convert osm Way to edge.
 	for _, edge := range extractor.AllEdges {
 		edgeId, oneway := edge.Id, edge.Oneway
 		osmNodes := edge.Nodes
@@ -388,18 +390,24 @@ func (extractor *Extractor) prepareEdges() {
 		geometry := graph.NewGeometry(len(osmNodes))
 		annotation := graph.NewEdgeAnnotation(edgeId)
 
+		reverse := false
+		forward, backward := true, !oneway
+
 		source, target := osmNodes[0], osmNodes[len(osmNodes)-1]
-		if !edge.Oneway && source > target {
+		if source > target {
 			// program rule.
 			// always source is less than target.
 			// except oneway edge.
 			head, tail := 0, len(osmNodes)-1
-			// reverse
-			for head <= tail {
+			// reverse geometry if not oneway.
+			for !edge.Oneway && head <= tail {
 				osmNodes[head], osmNodes[tail] = osmNodes[tail], osmNodes[head]
 				head += 1
 				tail -= 1
 			}
+			// reverse direction
+			// if oneway, after that fix this.
+			reverse = oneway
 		}
 
 		// to internal node id
@@ -421,59 +429,142 @@ func (extractor *Extractor) prepareEdges() {
 		}
 
 		from, to := nodes[0], nodes[len(nodes)-1]
-		fwdEdge := graph.NodeBasedEdge{
+		// fwdEdge := graph.NodeBasedEdge{
+		// 	From: from, To: to,
+		// 	Distance: distance,
+		// 	Forward:  forward, Backward: backward,
+		// 	AnnotationId: int32(len(annotations)),
+		// 	GeometryId:   uint32(len(geometries)),
+		// }
+
+		if reverse {
+			from, to = to, from
+			forward, backward = backward, forward
+		}
+		_fwdEdge := graph.InternalEdge{
 			From: from, To: to,
 			Distance: distance,
-			Forward:  true, Backward: !oneway, // oneway has no backward edge.
+			Forward:  forward, Backward: backward,
 			AnnotationId: int32(len(annotations)),
 			GeometryId:   uint32(len(geometries)),
 		}
 
-		fwdEdges = append(fwdEdges, fwdEdge)
+		//fwdEdges = append(fwdEdges, fwdEdge)
+		_fwdEdges = append(_fwdEdges, _fwdEdge)
 		geometries = append(geometries, *geometry)
 		annotations = append(annotations, *annotation)
 	}
 
-	sort.Slice(fwdEdges, func(l, r int) bool {
-		left, right := &fwdEdges[l], &fwdEdges[r]
+	// sort.Slice(fwdEdges, func(l, r int) bool {
+	// 	left, right := &fwdEdges[l], &fwdEdges[r]
+	// 	if left.From == right.From {
+	// 		return left.To < right.To
+	// 	}
+	// 	return left.From < right.From
+	// })
+	sort.Slice(_fwdEdges, func(l, r int) bool {
+		left, right := &_fwdEdges[l], &_fwdEdges[r]
 		if left.From == right.From {
 			return left.To < right.To
 		}
 		return left.From < right.From
 	})
 
-	// oneway edge... but bidirection
-	//
-	//
-	// for i := 0; i < len(fwdEdges); {
-	// 	startIdx, minIndex := i, i
-	// 	startEdge := &fwdEdges[startIdx]
+	// find minimal edge in both directions
+	for i := 0; i < len(_fwdEdges); {
+		startIdx := i
+		from, to := _fwdEdges[i].From, _fwdEdges[i].To
+		minForward, minBackward := math.MaxInt32, math.MaxInt32
+		minFwdIdx, minBwdIdx := -1, -1
 
-	// 	for ; i < len(fwdEdges); i++ {
-	// 		curEdge := &fwdEdges[i]
-	// 		if startEdge.From != curEdge.From {
-	// 			break
-	// 		}
-	// 		if startEdge.To != curEdge.To {
-	// 			break
-	// 		}
-	// 		if curEdge.Distance < fwdEdges[minIndex].Distance {
-	// 			minIndex = i
-	// 		}
+		for i < len(_fwdEdges) &&
+			_fwdEdges[i].From == from &&
+			_fwdEdges[i].To == to {
 
-	// 		fmt.Println(startEdge.From, startEdge.To)
-	// 	}
+			edge := &_fwdEdges[i]
 
-	// 	for j := startIdx; j < i; j++ {
-	// 		if startIdx == minIndex {
-	// 			continue
-	// 		}
-	// 		fwdEdges[j].From = math.MaxInt32
-	// 		fwdEdges[j].To = math.MaxInt32
+			if edge.Forward && edge.Distance < int32(minForward) {
+				minForward = int(edge.Distance)
+				minFwdIdx = i
+			}
+			if edge.Backward && edge.Distance < int32(minBackward) {
+				minBackward = int(edge.Distance)
+				minBwdIdx = i
+			}
+			i++
+		}
+
+		if minFwdIdx == minBwdIdx {
+			// maybe, bidirection way
+			_fwdEdges[minFwdIdx].Forward = true
+			_fwdEdges[minFwdIdx].Backward = true
+			_fwdEdges[minFwdIdx].Split = false
+		} else {
+			// maybe, oneway.
+			// but,
+			// https://www.openstreetmap.org/way/608946830#map=19/37.57055/126.99844
+			// https://www.openstreetmap.org/way/218835937#map=18/37.57049/126.99852
+			has_forward := minFwdIdx != -1
+			has_backward := minBwdIdx != -1
+
+			if has_forward {
+				// has forward direction
+				_fwdEdges[minFwdIdx].Forward = true
+				_fwdEdges[minFwdIdx].Backward = false
+				_fwdEdges[minFwdIdx].Split = has_backward
+			}
+			if has_backward {
+				// has backward direction
+				_fwdEdges[minBwdIdx].From, _fwdEdges[minBwdIdx].To =
+					_fwdEdges[minBwdIdx].To, _fwdEdges[minBwdIdx].From
+				_fwdEdges[minBwdIdx].Forward = true
+				_fwdEdges[minBwdIdx].Backward = false
+				_fwdEdges[minBwdIdx].Split = has_forward
+			}
+		}
+
+		for j := startIdx; j < i; j++ {
+			if j == minFwdIdx || j == minBwdIdx {
+				continue
+			}
+			_fwdEdges[j].From, _fwdEdges[j].To = math.MaxInt32, math.MaxInt32
+		}
+	}
+
+	// re-sort
+	sort.Slice(_fwdEdges, func(l, r int) bool {
+		left, right := &_fwdEdges[l], &_fwdEdges[r]
+		if left.From == right.From {
+			return left.To < right.To
+		}
+		return left.From < right.From
+	})
+
+	// no use invalid edge.
+	invalidIdx := sort.Search(len(_fwdEdges), func(i int) bool {
+		return _fwdEdges[i].From >= math.MaxInt32
+	})
+	_fwdEdges = _fwdEdges[:invalidIdx]
+
+	// {
+	// 	f1, _ := os.Create("A1.csv")
+	// 	f2, _ := os.Create("A2.csv")
+	// 	defer f1.Close()
+	// 	defer f2.Close()
+	// 	F1 := bufio.NewWriter(f1)
+	// 	F2 := bufio.NewWriter(f2)
+	// 	defer F1.Flush()
+	// 	defer F2.Flush()
+
+	// 	for i := 0; i < len(fwdEdges); i++ {
+	// 		fmt.Fprintf(F1, "%d,%d,%d,%d\n", i, fwdEdges[i].From, fwdEdges[i].To, fwdEdges[i].Distance)
+	// 		fmt.Fprintf(F2, "%d,%d,%d,%d,", i, _fwdEdges[i].From, _fwdEdges[i].To, _fwdEdges[i].Distance)
+	// 		fmt.Fprintln(F2, _fwdEdges[i].Split)
 	// 	}
 	// }
 
-	extractor.NodeBasedEdges = fwdEdges
+	extractor.InternalEdges = _fwdEdges
+	//extractor.NodeBasedEdges = fwdEdges
 	extractor.Geometries = geometries
 	extractor.EdgeAnnotations = annotations
 }
@@ -530,7 +621,7 @@ func (extractor *Extractor) writeEdges() {
 	log.Println("Edge count", len(extractor.NodeBasedEdges))
 
 	newFile := files.ToDataPath(extractor.rawFilePath, files.NBGEDGE)
-	err := files.StoreEdges(newFile, extractor.NodeBasedEdges)
+	err := files.StoreEdges(newFile, extractor.InternalEdges)
 	if err == nil {
 		log.Println("Saved to", newFile)
 	} else {

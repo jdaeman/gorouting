@@ -30,7 +30,7 @@ func StoreGeoNodes(filepath string, geoNodes []graph.ResultNode) error {
 }
 
 // Store uncompressed edges
-func StoreEdges(filepath string, edges []graph.NodeBasedEdge) error {
+func StoreEdges(filepath string, edges []graph.InternalEdge) error {
 	f, err := os.Create(filepath)
 	if err != nil {
 		return err

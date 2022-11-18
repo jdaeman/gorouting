@@ -1,6 +1,7 @@
 package extract
 
 import (
+	"fmt"
 	"graph"
 	"math"
 	"sort"
@@ -180,6 +181,8 @@ func (factory *EdgeBasedGraphFactory) Run() {
 
 	factory.GenerateEdgeExpandedNodes()
 	factory.GenerateEdgeExpandedEdges()
+
+	fmt.Println("number of ebn", number_of_edge_based_node)
 }
 
 // func getIncomingEdges(nbg *graph.NodeBasedGraph, via int32) []int32 {
