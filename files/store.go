@@ -11,7 +11,7 @@ import (
 // DataList...
 
 // Store node locations
-func StoreGeoNodes(filepath string, geoNodes []graph.ExternalNode) error {
+func StoreGeoNodes(filepath string, geoNodes []graph.ResultNode) error {
 	f, err := os.Create(filepath)
 	if err != nil {
 		return err
@@ -30,7 +30,7 @@ func StoreGeoNodes(filepath string, geoNodes []graph.ExternalNode) error {
 }
 
 // Store uncompressed edges
-func StoreUncompEdges(filepath string, edges []graph.InternalEdge) error {
+func StoreEdges(filepath string, edges []graph.NodeBasedEdge) error {
 	f, err := os.Create(filepath)
 	if err != nil {
 		return err
@@ -61,6 +61,45 @@ func StoreEdgeAnnotations(filepath string, annotations []graph.EdgeAnnotation) e
 		return err
 	}
 	err = binary.Write(f, binary.LittleEndian, annotations)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func StoreEdgeGeometries(filepath string, geometries []graph.Geometry) error {
+	f, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	err = binary.Write(f, binary.LittleEndian, int32(len(geometries)))
+	if err != nil {
+		return err
+	}
+
+	for _, geometry := range geometries {
+		err = binary.Write(f, binary.LittleEndian, int32(len(geometry.Nodes)))
+		err = binary.Write(f, binary.LittleEndian, geometry.Nodes)
+		err = binary.Write(f, binary.LittleEndian, geometry.Distances)
+	}
+
+	return err
+}
+
+func StoreTurnRestrictions(filepath string, restrictions []graph.InternalRestriction) error {
+	f, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	err = binary.Write(f, binary.LittleEndian, int32(len(restrictions)))
+	if err != nil {
+		return err
+	}
+	err = binary.Write(f, binary.LittleEndian, restrictions)
 	if err != nil {
 		return err
 	}

@@ -6,7 +6,13 @@ import (
 	"sort"
 )
 
-type ExternalNode struct {
+// type ExternalNode struct {
+// 	Id int64   // osm node id
+// 	X  float64 // longitude
+// 	Y  float64 // latitude
+// }
+
+type ResultNode struct {
 	Id int64   // osm node id
 	X  float64 // longitude
 	Y  float64 // latitude
@@ -16,6 +22,32 @@ type ResultWay struct {
 	Id     int64
 	Nodes  []int64
 	Oneway bool
+}
+
+type ResultRestriction struct {
+	From int64
+	Via  int64
+	To   int64
+
+	Only bool
+}
+
+type InternalRestriction struct {
+	From int32
+	Via  int32
+	To   int32
+
+	Only bool
+}
+
+type NodeBasedEdgeWithOSM struct {
+	OsmId   int64 // osm way id
+	OsmFrom int64 // osm node id
+	OsmTo   int64 // osm node id
+
+	Oneway bool
+
+	Edge NodeBasedEdge
 }
 
 type ExternalEdge struct {
@@ -35,6 +67,11 @@ type EdgeAnnotation struct {
 	// etc way attributes
 }
 
+func NewEdgeAnnotation(id int64) *EdgeAnnotation {
+	ret := &EdgeAnnotation{Id: id}
+	return ret
+}
+
 type InternalNode struct {
 	Id int32 // osm node id -> indexed id
 }
@@ -49,12 +86,6 @@ type InternalEdge struct {
 	Distance int32
 	Forward  bool // From -> To. always true
 	Reverse  bool // if edge is oneway, false, From -> To is not, To -> From
-}
-
-type InternalRestriction struct {
-	From int32 // indexed node id
-	Via  int32 // indexed node id
-	To   int32 // indexed node id
 }
 
 type OsmGraph struct {

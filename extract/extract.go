@@ -21,8 +21,12 @@ func Run(config Config) int {
 		return 1
 	}
 
-	// compress edge
-	//
+	nodeBasedGraphFactory := NewNodeBasedGraphFactory(config.OsmPath)
+	edgeBasedGraphFactory := NewEdgeBasedGraphFactory(nodeBasedGraphFactory)
+	edgeBasedGraphFactory.Run()
+
+	// RTree
+	// SCC (?)
 
 	return 0
 }
@@ -30,38 +34,37 @@ func Run(config Config) int {
 func ParseOSMData(config Config) bool {
 	log.Println("Read file from", config.OsmPath)
 	objects, err := ReadOSM(config.OsmPath)
-
 	if err != nil {
 		log.Println("Error", err)
 		return false
 	}
 
-	nodes := objects[0]
-	ways := objects[1]
-	relations := objects[2]
+	nodes, ways, relations := objects[0], objects[1], objects[2]
 	extractor := NewExtractor(nodes, ways, relations, config.OsmPath)
-	nodes = nil
-	ways = nil
-	relations = nil
-	objects = nil
+	nodes, ways, relations, objects = nil, nil, nil, nil
 
+	// parse each objects.
 	nodeCount := extractor.ProcessOSMNodes()
 	log.Println("Raw osm node count", nodeCount)
 	wayCount := extractor.ProcessOSMWays()
-	log.Println("Raw osm way count", wayCount)
-	restrictionCount := extractor.ProcessOSMRestriction()
+	log.Println("Raw osm drivable way count", wayCount)
+	restrictionCount := extractor.ProcessOSMRestrictions()
 	log.Println("Raw osm restriction count", restrictionCount)
 
+	// internal process step1.
 	extractor.ProcessNodes()
 	extractor.ProcessEdges()
-	log.Println("Used node count", len(extractor.UsedNodes))
-	log.Println("Used edge count", len(extractor.UsedEdges))
+	extractor.ProcessRestrictions()
 
+	// prepare internal graph data..
+	// save as file.
 	extractor.PrepareData()
 
 	return true
 }
 
+// Read osm file.
+// Return Node, Way, Relation object slices.
 func ReadOSM(filePath string) ([]osm.Objects, error) {
 	f, err := os.Open(filePath)
 	if err != nil {

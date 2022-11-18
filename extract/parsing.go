@@ -3,6 +3,7 @@ package extract
 import (
 	"errors"
 	"graph"
+	"strings"
 
 	"github.com/paulmach/osm"
 )
@@ -40,10 +41,10 @@ func FindTag(tags *osm.Tags, key string) (string, error) {
 	return "", errors.New("No key")
 }
 
-func ParseOSMNode(_node osm.Object) *graph.ExternalNode {
+func ParseOSMNode(_node osm.Object) *graph.ResultNode {
 	node := _node.(*osm.Node)
 
-	ret := &graph.ExternalNode{}
+	ret := &graph.ResultNode{}
 
 	ret.Id = int64(node.ID)
 	ret.X = node.Lon
@@ -53,6 +54,7 @@ func ParseOSMNode(_node osm.Object) *graph.ExternalNode {
 	return ret
 }
 
+// if this way is undrivable, return nil.
 func ParseOSMWay(_way osm.Object) *graph.ResultWay {
 	way := _way.(*osm.Way)
 	ret := &graph.ResultWay{}
@@ -60,9 +62,9 @@ func ParseOSMWay(_way osm.Object) *graph.ResultWay {
 	highway, _ := FindTag(&way.Tags, "highway")
 	if highway == "" {
 		return nil
-	}
-
-	if _, exist := highwayTable[highway]; !exist {
+	} else if ok, exist := highwayTable[highway]; !exist {
+		return nil
+	} else if !ok {
 		return nil
 	}
 
@@ -71,11 +73,15 @@ func ParseOSMWay(_way osm.Object) *graph.ResultWay {
 	for _, node := range way.Nodes {
 		ret.Nodes = append(ret.Nodes, int64(node.ID))
 	}
+	if len(way.Nodes) <= 1 {
+		return nil
+	}
 
 	oneway, _ := FindTag(&way.Tags, "oneway")
 	if oneway == "yes" {
 		ret.Oneway = true
 	} else {
+		// bidirection.
 		ret.Oneway = false
 	}
 
@@ -83,41 +89,45 @@ func ParseOSMWay(_way osm.Object) *graph.ResultWay {
 	return ret
 }
 
-// func ParseOSMRestriction(_restriction osm.Object) *ParsingRestriction {
-// 	restriction := _restriction.(*osm.Relation)
+// current support node restriction.
+// TBD. way restriction.
+func ParseOSMRelation(relation osm.Object) *graph.ResultRestriction {
+	restriction := relation.(*osm.Relation)
+	restriction_type, _ := FindTag(&restriction.Tags, "restriction")
 
-// 	ret := &ParsingRestriction{}
-// 	ret.VIAS = make([]int, 0, 1)
+	onlyRestriction := false
+	if strings.Contains(restriction_type, "only") {
+		onlyRestriction = true
+	}
 
-// 	for _, member := range restriction.Members {
-// 		switch member.Role {
-// 		case "from":
-// 			if member.Type != "way" {
-// 				panic("from type is not way")
-// 			}
-// 			ret.FROM = int(member.Ref)
-// 		case "via":
-// 			ret.VIAS = append(ret.VIAS, int(member.Ref))
-// 		case "to":
-// 			if member.Type != "way" {
-// 				panic("to type is not way")
-// 			}
-// 			ret.TO = int(member.Ref)
-// 		}
-// 	}
+	var from, via, to int64
+	from, via, to = -1, -1, -1
 
-// 	if len(ret.VIAS) >= 2 {
-// 		ret.MULTIRESTRICTION = 1
-// 	} else if len(ret.VIAS) == 1 {
-// 		ret.MULTIRESTRICTION = 0
-// 	} else {
-// 		ret = nil
-// 	}
+	for _, member := range restriction.Members {
+		switch member.Role {
+		case "from":
+			// way
+			if member.Type != "way" {
+				panic("from type is not way")
+			}
+			from = int64(member.Ref)
+		case "via":
+			if member.Type == "way" {
+				break
+			}
+			via = int64(member.Ref)
+		case "to":
+			if member.Type != "way" {
+				panic("to type is not way")
+			}
+			to = int64(member.Ref)
+		}
+	}
 
-// 	if ret.FROM == 0 || ret.TO == 0 {
-// 		ret = nil
-// 	}
+	if from == -1 || via == -1 || to == -1 {
+		return nil
+	}
 
-// 	// if ret is nil, invalid restriction
-// 	return ret
-// }
+	ret := &graph.ResultRestriction{From: from, Via: via, To: to, Only: onlyRestriction}
+	return ret
+}

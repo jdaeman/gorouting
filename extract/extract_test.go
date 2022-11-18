@@ -2,18 +2,34 @@ package extract_test
 
 import (
 	"extract"
+	"files"
 	"fmt"
 	"sort"
 	"testing"
 )
 
 func TestCompress(t *testing.T) {
+	rawFilePath := "data/map.osm"
 
-	compressor := extract.NewCompressor("data/map.osm")
+	geoNodes := files.LoadGeoNodes(files.ToDataPath(rawFilePath, files.GEONODE))
+	edges := files.LoadEdges(files.ToDataPath(rawFilePath, files.NBGEDGE))
+	annotations := files.LoadEdgeAnnotations(files.ToDataPath(rawFilePath, files.ANNOTATION))
+	geometries := files.LoadEdgeGeometries(files.ToDataPath(rawFilePath, files.GEOMETRY))
 
-	compCount := compressor.Compress()
+	fmt.Println("node count", len(geoNodes))
+	fmt.Println("edge count", len(edges))
+	fmt.Println("anno count", len(annotations))
+	fmt.Println("geo count", len(geometries))
 
-	fmt.Println("Compressed node count", compCount)
+	from, to := edges[0].From, edges[0].To
+	fmt.Println(annotations[edges[0].AnnotationId].Id)
+	fmt.Println(geoNodes[from].Id, geoNodes[to].Id)
+	for i := range geometries[0].Nodes {
+		fmt.Println(geoNodes[geometries[0].Nodes[i]].Id)
+		fmt.Println("Dist", geometries[0].Distances[i])
+	}
+	fmt.Println("Total dist", edges[0].Distance)
+
 }
 
 func TestRun(t *testing.T) {
@@ -41,14 +57,14 @@ func TestExtractor(t *testing.T) {
 	extractor.ProcessEdges()
 
 	fmt.Println("node count", len(extractor.UsedNodes))
-	fmt.Println("edge count", len(extractor.UsedEdges))
+	//fmt.Println("edge count", len(extractor.UsedEdges))
 
 	extractor.PrepareData()
 
 	fmt.Println("Unique loc count", len(extractor.AllNodes))
 	fmt.Println("Unique node count", len(extractor.UsedNodes))
 
-	fmt.Println("NodeBasedEdge count", len(extractor.InternalEdges))
+	fmt.Println("NodeBasedEdge count", len(extractor.NodeBasedEdges))
 }
 
 func TestReadOSM(t *testing.T) {

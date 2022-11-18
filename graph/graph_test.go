@@ -4,49 +4,94 @@ import (
 	"files"
 	"fmt"
 	"graph"
+	"sort"
 	"testing"
 )
 
-func TestOsmGraph(t *testing.T) {
-	geos := files.LoadGeoNodes("../extract/data/map.geos")
-	uncomps := files.LoadUncompEdges("../extract/data/map.uncomp")
+func getIncomingEdges(nbg *graph.NodeBasedGraph, via int32) []int32 {
+	curEdge, lastEdge := nbg.BeginEdges(via), nbg.EndEdges(via)
+	edges := make([]int32, 0)
 
-	nodeCount := len(geos)
-	graph := graph.NewOsmGraph(int32(nodeCount), uncomps)
+	for ; curEdge < lastEdge; curEdge++ {
+		from := nbg.GetTarget(curEdge)
+		incoming := nbg.FindEdge(from, via)
 
-	var v int32
-	for v = 0; v < int32(nodeCount); v++ {
-		degree := graph.GetOutDegree(v)
-		if degree == 2 {
-			break
+		if !nbg.GetEdgeData(incoming).Reverse {
+			edges = append(edges, incoming)
+		}
+	}
+	return edges
+}
+
+func getOutgoingEdges(nbg *graph.NodeBasedGraph, via int32) []int32 {
+	curEdge, lastEdge := nbg.BeginEdges(via), nbg.EndEdges(via)
+	edges := make([]int32, 0)
+
+	for ; curEdge < lastEdge; curEdge++ {
+		edges = append(edges, curEdge)
+	}
+
+	return edges
+}
+
+func isTurnAllowed(restrictions []graph.InternalRestriction, from, via, to int32) bool {
+	count := len(restrictions)
+	i := sort.Search(count, func(i int) bool {
+		return restrictions[i].From >= from
+	})
+	j := sort.Search(count, func(i int) bool {
+		return restrictions[i].From > from
+	})
+
+	for ; i < j; i++ {
+		restriction := &restrictions[i]
+
+		if restriction.Via != via {
+			continue
+		}
+
+		if restriction.Only {
+			return restriction.To == to
+		} else {
+			if restriction.To == to {
+				return false
+			}
 		}
 	}
 
-	u := graph.GetTarget(v, 0)
-	w := graph.GetTarget(v, 1)
+	return true
+}
 
-	fwd1, _ := graph.FindConstEdge(u, v)
-	fwd2, _ := graph.FindConstEdge(v, w)
-	rev1, _ := graph.FindConstEdge(w, v)
-	rev2, _ := graph.FindConstEdge(v, u)
+func TestNBG(t *testing.T) {
+	nodes := files.LoadGeoNodes("../extract/data/map.node")
+	edges := files.LoadEdges("../extract/data/map.edge")
+	annos := files.LoadEdgeAnnotations("../extract/data/map.anno")
+	restrictions := files.LoadRestrictions("../extract/data/map.restriction")
 
-	graph.DelEdge(v, u)
-	graph.DelEdge(v, w)
+	nodeCount := int32(len(nodes))
+	nbg := graph.NewNodeBasedGraph(nodeCount, edges)
 
-	graph.SetNewTarget(u, v, w)
-	graph.SetNewTarget(w, v, u)
+	fmt.Println(len(restrictions))
 
-	fmt.Println(graph.FindEdge(u, w).Distance)
-	fmt.Println(graph.FindEdge(w, u).Distance)
+	var via int32
+	for via = 0; via < nodeCount; via++ {
 
-	graph.FindEdge(u, w).Distance = fwd1.Distance + fwd2.Distance
-	graph.FindEdge(w, u).Distance = rev1.Distance + rev2.Distance
+		incomingEdges := getIncomingEdges(nbg, via)
+		outgoingEdges := getOutgoingEdges(nbg, via)
 
-	if graph.GetOutDegree(v) != 0 {
-		t.Fail()
+		for _, incoming_edge := range incomingEdges {
+			from := nbg.GetSource(incoming_edge)
+			// is incoming  edge restriction via?
+
+			for _, outgoing_edge := range outgoingEdges {
+				to := nbg.GetTarget(outgoing_edge)
+				// is turn allowed?
+				inway := annos[nbg.GetEdgeData(incoming_edge).AnnotationId].Id
+				outway := annos[nbg.GetEdgeData(outgoing_edge).AnnotationId].Id
+				if !isTurnAllowed(restrictions, from, via, to) {
+					fmt.Println(inway, "->", outway, "turn restriction")
+				}
+			}
+		}
 	}
-
-	fmt.Println(graph.FindEdge(u, w).Distance)
-	fmt.Println(graph.FindEdge(w, u).Distance)
-
 }
