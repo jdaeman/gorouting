@@ -53,6 +53,8 @@ func directedEdges(edges []InternalEdge) []NodeBasedEdge {
 
 		directedEdges = append(directedEdges, newEdge)
 		// split this edge.
+		// A ---> B
+		//  <---
 		if !edge.Split {
 			// normaly,
 			// 1. bidirection way

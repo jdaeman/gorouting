@@ -1,8 +1,8 @@
 package extract
 
 import (
-	"fmt"
 	"graph"
+	"log"
 	"math"
 	"sort"
 )
@@ -52,43 +52,52 @@ func (factory *EdgeBasedGraphFactory) LabelEdgeBasedNodes() int32 {
 	return edge_based_node_id
 }
 
-// TBD
 // EdgeBasedNodeSegment for RTree (map matching)
 func (factory *EdgeBasedGraphFactory) InsertEdgeBasedNode(u, v int32) {
 	nbg_factory := factory.nbg_factory
 	nbg := nbg_factory.GetGraph()
 	mapping := factory.nbe_to_ebn_mapping
+	edge_based_nodes := factory.edge_based_nodes
 	segments := &factory.edge_based_node_segments
 
 	edge1 := nbg.FindEdge(u, v)
 	edge2 := nbg.FindEdge(v, u)
 
 	if mapping[edge1] == math.MaxInt32 {
-		panic("Edge is reverse?")
+		panic("always edge1 is not reverse.")
+	}
+
+	ebn1, ebn2 := mapping[edge1], mapping[edge2]
+
+	// set edge_based_node data
+	edge_based_nodes[ebn1].AnnotationId = nbg.GetEdgeData(edge1).AnnotationId
+	edge_based_nodes[ebn1].GeometryId = nbg.GetEdgeData(edge1).GeometryId
+
+	if ebn2 != math.MaxInt32 {
+		edge_based_nodes[ebn2].AnnotationId = nbg.GetEdgeData(edge2).AnnotationId
+		edge_based_nodes[ebn2].GeometryId = nbg.GetEdgeData(edge2).GeometryId
 	}
 
 	geometryId := nbg.GetEdgeData(edge1).GeometryId
-	nodes := nbg_factory.GetGeometry(int32(geometryId))
-	segCount := len(nodes)
+	nodes := nbg_factory.GetGeometry(geometryId)
 
-	for i := 1; i < segCount; i++ {
-		coord1, coord2 := nodes[i-1], nodes[i]
+	for i := 1; i < len(nodes); i++ {
+		coordId1, coordId2 := nodes[i-1], nodes[i]
 
 		*segments = append(*segments, graph.EdgeBasedNodeSegment{
 			Forward_id:  mapping[edge1],
 			Backward_id: mapping[edge2],
-			U:           coord1,
-			V:           coord2,
+			U:           coordId1,
+			V:           coordId2,
 		})
 	}
 }
 
-// TBD
 func (factory *EdgeBasedGraphFactory) GenerateEdgeExpandedNodes() {
 	nbg := factory.nbg_factory.GetGraph()
 	mapping := factory.nbe_to_ebn_mapping
-	segments := &factory.edge_based_node_segments
-	*segments = make([]graph.EdgeBasedNodeSegment, 0)
+	factory.edge_based_node_segments = make([]graph.EdgeBasedNodeSegment, 0)
+	factory.edge_based_nodes = make([]graph.EdgeBasedNode, factory.number_of_edge_based_nodes)
 
 	for u := int32(0); u < nbg.GetNumberOfNodes(); u++ {
 		nbg_edge_id := nbg.BeginEdges(u)
@@ -96,6 +105,7 @@ func (factory *EdgeBasedGraphFactory) GenerateEdgeExpandedNodes() {
 		for ; nbg_edge_id < nbg.EndEdges(u); nbg_edge_id++ {
 			v := nbg.GetTarget(nbg_edge_id)
 
+			// always u < v
 			if u >= v {
 				continue
 			}
@@ -121,7 +131,6 @@ func (factory *EdgeBasedGraphFactory) GenerateEdgeExpandedEdges() {
 	nbg := nbg_factory.GetGraph()
 	mapping := factory.nbe_to_ebn_mapping
 
-	//lineEdges := &factory.edge_based_edges
 	lineEdges := make([]graph.EdgeBasedEdge, 0)
 
 	generate_edge := func(
@@ -182,7 +191,9 @@ func (factory *EdgeBasedGraphFactory) Run() {
 	factory.GenerateEdgeExpandedNodes()
 	factory.GenerateEdgeExpandedEdges()
 
-	fmt.Println("number of ebn", number_of_edge_based_node)
+	log.Println("number of edge_based_node", len(factory.edge_based_nodes))
+	log.Println("number of edge_based_node_segments", len(factory.edge_based_node_segments))
+	log.Println("number of edge_based_edge", len(factory.edge_based_edges))
 }
 
 // func getIncomingEdges(nbg *graph.NodeBasedGraph, via int32) []int32 {

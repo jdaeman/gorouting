@@ -159,10 +159,6 @@ func (extractor *Extractor) splitCrossWays() {
 
 	ways := make([]graph.ResultWay, 0, len(*allWays))
 	for _, way := range *allWays {
-		if len(way.Nodes) <= 1 {
-			continue
-		}
-
 		wayId, oneway := way.Id, way.Oneway
 		nodes := []int64{way.Nodes[0]}
 
@@ -375,7 +371,6 @@ func (extractor *Extractor) getInternalNodeId(osmId int64) int32 {
 func (extractor *Extractor) prepareEdges() {
 	geoNodes := extractor.AllNodes
 
-	//fwdEdges := make([]graph.NodeBasedEdge, 0)
 	_fwdEdges := make([]graph.InternalEdge, 0)
 	geometries := make([]graph.Geometry, 0, len(extractor.AllEdges))
 	annotations := make([]graph.EdgeAnnotation, 0, len(extractor.AllEdges))
@@ -429,14 +424,6 @@ func (extractor *Extractor) prepareEdges() {
 		}
 
 		from, to := nodes[0], nodes[len(nodes)-1]
-		// fwdEdge := graph.NodeBasedEdge{
-		// 	From: from, To: to,
-		// 	Distance: distance,
-		// 	Forward:  forward, Backward: backward,
-		// 	AnnotationId: int32(len(annotations)),
-		// 	GeometryId:   uint32(len(geometries)),
-		// }
-
 		if reverse {
 			from, to = to, from
 			forward, backward = backward, forward
@@ -449,19 +436,11 @@ func (extractor *Extractor) prepareEdges() {
 			GeometryId:   uint32(len(geometries)),
 		}
 
-		//fwdEdges = append(fwdEdges, fwdEdge)
 		_fwdEdges = append(_fwdEdges, _fwdEdge)
 		geometries = append(geometries, *geometry)
 		annotations = append(annotations, *annotation)
 	}
 
-	// sort.Slice(fwdEdges, func(l, r int) bool {
-	// 	left, right := &fwdEdges[l], &fwdEdges[r]
-	// 	if left.From == right.From {
-	// 		return left.To < right.To
-	// 	}
-	// 	return left.From < right.From
-	// })
 	sort.Slice(_fwdEdges, func(l, r int) bool {
 		left, right := &_fwdEdges[l], &_fwdEdges[r]
 		if left.From == right.From {
@@ -546,25 +525,7 @@ func (extractor *Extractor) prepareEdges() {
 	})
 	_fwdEdges = _fwdEdges[:invalidIdx]
 
-	// {
-	// 	f1, _ := os.Create("A1.csv")
-	// 	f2, _ := os.Create("A2.csv")
-	// 	defer f1.Close()
-	// 	defer f2.Close()
-	// 	F1 := bufio.NewWriter(f1)
-	// 	F2 := bufio.NewWriter(f2)
-	// 	defer F1.Flush()
-	// 	defer F2.Flush()
-
-	// 	for i := 0; i < len(fwdEdges); i++ {
-	// 		fmt.Fprintf(F1, "%d,%d,%d,%d\n", i, fwdEdges[i].From, fwdEdges[i].To, fwdEdges[i].Distance)
-	// 		fmt.Fprintf(F2, "%d,%d,%d,%d,", i, _fwdEdges[i].From, _fwdEdges[i].To, _fwdEdges[i].Distance)
-	// 		fmt.Fprintln(F2, _fwdEdges[i].Split)
-	// 	}
-	// }
-
 	extractor.InternalEdges = _fwdEdges
-	//extractor.NodeBasedEdges = fwdEdges
 	extractor.Geometries = geometries
 	extractor.EdgeAnnotations = annotations
 }
@@ -618,7 +579,7 @@ func (extractor *Extractor) writeNodes() {
 }
 
 func (extractor *Extractor) writeEdges() {
-	log.Println("Edge count", len(extractor.NodeBasedEdges))
+	log.Println("Edge count", len(extractor.InternalEdges))
 
 	newFile := files.ToDataPath(extractor.rawFilePath, files.NBGEDGE)
 	err := files.StoreEdges(newFile, extractor.InternalEdges)

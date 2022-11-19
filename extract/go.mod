@@ -17,3 +17,5 @@ replace graph v0.0.0 => ../graph
 require files v0.0.0
 
 replace files v0.0.0 => ../files
+
+//require github.com/dhconnelly/rtreego v1.1.0

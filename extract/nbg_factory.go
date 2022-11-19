@@ -54,9 +54,10 @@ func (factory *NodeBasedGraphFactory) GetOutgoingEdges(via int32) []int32 {
 	edges := make([]int32, 0)
 
 	for ; curEdge < lastEdge; curEdge++ {
-		if !nbg.GetEdgeData(curEdge).Reverse {
-			edges = append(edges, curEdge)
+		if nbg.GetEdgeData(curEdge).Reverse {
+			continue
 		}
+		edges = append(edges, curEdge)
 	}
 
 	return edges
@@ -93,7 +94,21 @@ func (factory *NodeBasedGraphFactory) IsTurnallowed(from, via, to int32) bool {
 	return true
 }
 
-func (factory *NodeBasedGraphFactory) GetGeometry(geoId int32) []int32 {
-	geoId &= ((1 << 31) - 1)
-	return factory.geometries[geoId].Nodes
+func (factory *NodeBasedGraphFactory) GetGeometry(geoId uint32) []int32 {
+	fwdGeoId := geoId & ((1 << 31) - 1)
+	fwdGeos := factory.geometries[fwdGeoId].Nodes
+	nodes := make([]int32, len(fwdGeos))
+	copy(nodes, fwdGeos)
+
+	if (geoId & (1 << 31)) > 0 {
+		// reverse geometry
+		head, tail := 0, len(nodes)-1
+		for head < tail {
+			nodes[head], nodes[tail] = nodes[tail], nodes[head]
+			head++
+			tail--
+		}
+	}
+
+	return nodes
 }

@@ -7,6 +7,8 @@ package graph
 //
 
 type EdgeBasedNode struct {
+	GeometryId   uint32
+	AnnotationId int32
 }
 
 type EdgeBasedNodeSegment struct {
