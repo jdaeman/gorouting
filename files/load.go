@@ -109,3 +109,39 @@ func LoadRestrictions(filepath string) []graph.InternalRestriction {
 	binary.Read(f, binary.LittleEndian, ret)
 	return ret
 }
+
+func LoadEdgeBasedNodes(filepath string) []graph.EdgeBasedNode {
+	f, err := os.Open(filepath)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	var count int32
+	err = binary.Read(f, binary.LittleEndian, &count)
+	if count == 0 {
+		panic("Data count is zero")
+	}
+
+	ret := make([]graph.EdgeBasedNode, count)
+	binary.Read(f, binary.LittleEndian, ret)
+	return ret
+}
+
+func LoadEdgeBasedEdges(filepath string) []graph.EdgeBasedEdge {
+	f, err := os.Open(filepath)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	var count int32
+	err = binary.Read(f, binary.LittleEndian, &count)
+	if count == 0 {
+		panic("Data count is zero")
+	}
+
+	ret := make([]graph.EdgeBasedEdge, count)
+	binary.Read(f, binary.LittleEndian, ret)
+	return ret
+}

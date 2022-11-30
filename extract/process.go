@@ -302,15 +302,15 @@ func (extractor *Extractor) ProcessRestrictions() {
 func (extractor *Extractor) PrepareData() {
 	// node
 	extractor.prepareNodes()
-	extractor.writeNodes()
+	//extractor.writeNodes()
 
 	// edges...
 	extractor.prepareEdges()
-	extractor.writeEdges()
+	//extractor.writeEdges()
 
 	// restrictions...
 	extractor.prepareRestrictions()
-	extractor.writeRestrictions()
+	//extractor.writeRestrictions()
 }
 
 func (extractor *Extractor) prepareNodes() {
@@ -566,54 +566,91 @@ func (extractor *Extractor) prepareRestrictions() {
 	*allRestrictions = nil
 }
 
-func (extractor *Extractor) writeNodes() {
-	log.Println("Location/Unique node count", len(extractor.AllNodes))
+// func (extractor *Extractor) writeNodes() {
+// 	log.Println("Location/Unique node count", len(extractor.AllNodes))
 
-	newFile := files.ToDataPath(extractor.rawFilePath, files.GEONODE)
-	err := files.StoreGeoNodes(newFile, extractor.AllNodes)
-	if err == nil {
-		log.Println("Saved to", newFile)
-	} else {
-		log.Println("ERROR", err)
+// 	newFile := files.ToDataPath(extractor.rawFilePath, files.GEONODE)
+// 	err := files.StoreGeoNodes(newFile, extractor.AllNodes)
+// 	if err == nil {
+// 		log.Println("Saved to", newFile)
+// 	} else {
+// 		log.Println("ERROR", err)
+// 	}
+// }
+
+// func (extractor *Extractor) writeEdges() {
+// 	log.Println("Edge count", len(extractor.InternalEdges))
+
+// 	newFile := files.ToDataPath(extractor.rawFilePath, files.NBGEDGE)
+// 	err := files.StoreEdges(newFile, extractor.InternalEdges)
+// 	if err == nil {
+// 		log.Println("Saved to", newFile)
+// 	} else {
+// 		log.Println("ERROR", err)
+// 	}
+
+// 	newFile = files.ToDataPath(extractor.rawFilePath, files.ANNOTATION)
+// 	err = files.StoreEdgeAnnotations(newFile, extractor.EdgeAnnotations)
+// 	if err == nil {
+// 		log.Println("Saved to", newFile)
+// 	} else {
+// 		log.Println("ERROR", err)
+// 	}
+
+// 	newFile = files.ToDataPath(extractor.rawFilePath, files.GEOMETRY)
+// 	err = files.StoreEdgeGeometries(newFile, extractor.Geometries)
+// 	if err == nil {
+// 		log.Println("Saved to", newFile)
+// 	} else {
+// 		log.Println("ERROR", err)
+// 	}
+// }
+
+// func (extractor *Extractor) writeRestrictions() {
+// 	log.Println("Restriction count", len(extractor.Restrictions))
+
+// 	newFile := files.ToDataPath(extractor.rawFilePath, files.RESTRICTION)
+// 	err := files.StoreTurnRestrictions(newFile, extractor.Restrictions)
+// 	if err == nil {
+// 		log.Println("Saved to", newFile)
+// 	} else {
+// 		log.Println("ERROR", err)
+// 	}
+// }
+
+func (extractor Extractor) saveResult(savepath string) bool {
+	dataWriter := files.NewWriter(savepath)
+
+	log.Println("Save geo nodes", len(extractor.AllNodes))
+	err := dataWriter.SaveGeoNodes(extractor.AllNodes)
+	if err != nil {
+		log.Println("Error", err)
+		return false
 	}
-}
-
-func (extractor *Extractor) writeEdges() {
-	log.Println("Edge count", len(extractor.InternalEdges))
-
-	newFile := files.ToDataPath(extractor.rawFilePath, files.NBGEDGE)
-	err := files.StoreEdges(newFile, extractor.InternalEdges)
-	if err == nil {
-		log.Println("Saved to", newFile)
-	} else {
-		log.Println("ERROR", err)
+	log.Println("Save edges", len(extractor.InternalEdges))
+	err = dataWriter.SaveEdges(extractor.InternalEdges)
+	if err != nil {
+		log.Println("Error", err)
+		return false
+	}
+	log.Println("Save edge annotations", len(extractor.EdgeAnnotations))
+	err = dataWriter.SaveEdgeAnnotations(extractor.EdgeAnnotations)
+	if err != nil {
+		log.Println("Error", err)
+		return false
+	}
+	log.Println("Save edge geometries", len(extractor.Geometries))
+	err = dataWriter.SaveEdgeGeometries(extractor.Geometries)
+	if err != nil {
+		log.Println("Error", err)
+		return false
+	}
+	log.Println("Save turn restrictions", len(extractor.Restrictions))
+	err = dataWriter.SaveTurnRestrictions(extractor.Restrictions)
+	if err != nil {
+		log.Println("Error", err)
+		return false
 	}
 
-	newFile = files.ToDataPath(extractor.rawFilePath, files.ANNOTATION)
-	err = files.StoreEdgeAnnotations(newFile, extractor.EdgeAnnotations)
-	if err == nil {
-		log.Println("Saved to", newFile)
-	} else {
-		log.Println("ERROR", err)
-	}
-
-	newFile = files.ToDataPath(extractor.rawFilePath, files.GEOMETRY)
-	err = files.StoreEdgeGeometries(newFile, extractor.Geometries)
-	if err == nil {
-		log.Println("Saved to", newFile)
-	} else {
-		log.Println("ERROR", err)
-	}
-}
-
-func (extractor *Extractor) writeRestrictions() {
-	log.Println("Restriction count", len(extractor.Restrictions))
-
-	newFile := files.ToDataPath(extractor.rawFilePath, files.RESTRICTION)
-	err := files.StoreTurnRestrictions(newFile, extractor.Restrictions)
-	if err == nil {
-		log.Println("Saved to", newFile)
-	} else {
-		log.Println("ERROR", err)
-	}
+	return true
 }

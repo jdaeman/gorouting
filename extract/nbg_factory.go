@@ -14,10 +14,12 @@ type NodeBasedGraphFactory struct {
 }
 
 func NewNodeBasedGraphFactory(datapath string) *NodeBasedGraphFactory {
-	nodes := files.LoadGeoNodes(files.ToDataPath(datapath, files.GEONODE))
-	edges := files.LoadEdges(files.ToDataPath(datapath, files.NBGEDGE))
-	restrictions := files.LoadRestrictions(files.ToDataPath(datapath, files.RESTRICTION))
-	geometries := files.LoadEdgeGeometries(files.ToDataPath(datapath, files.GEOMETRY))
+	dataReader := files.NewReader(datapath)
+
+	nodes := dataReader.LoadGeoNodes()
+	edges := dataReader.LoadEdges()
+	restrictions := dataReader.LoadRestrictions()
+	geometries := dataReader.LoadEdgeGeometries()
 
 	nodeCount := int32(len(nodes))
 	nbg := graph.NewNodeBasedGraph(nodeCount, edges)

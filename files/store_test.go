@@ -9,7 +9,7 @@ import (
 
 func TestGeoNodes(t *testing.T) {
 
-	data := make([]graph.ExternalNode, 2)
+	data := make([]graph.ResultNode, 2)
 
 	data[0].Id = 88
 	data[0].X = 120.123

@@ -4,8 +4,10 @@ import (
 	"files"
 	"fmt"
 	"graph"
+	"log"
 	"sort"
 	"testing"
+	"view"
 )
 
 func getIncomingEdges(nbg *graph.NodeBasedGraph, via int32) []int32 {
@@ -63,10 +65,13 @@ func isTurnAllowed(restrictions []graph.InternalRestriction, from, via, to int32
 }
 
 func TestNBG(t *testing.T) {
-	nodes := files.LoadGeoNodes("../extract/data/map.node")
-	edges := files.LoadEdges("../extract/data/map.edge")
-	annos := files.LoadEdgeAnnotations("../extract/data/map.anno")
-	restrictions := files.LoadRestrictions("../extract/data/map.restriction")
+
+	dataReader := files.NewReader("../extract/data/map.osm")
+
+	nodes := dataReader.LoadGeoNodes()            //files.LoadGeoNodes("../extract/data/map.node")
+	edges := dataReader.LoadEdges()               //files.LoadEdges("../extract/data/map.edge")
+	annos := dataReader.LoadEdgeAnnotations()     //files.LoadEdgeAnnotations("../extract/data/map.anno")
+	restrictions := dataReader.LoadRestrictions() //files.LoadRestrictions("../extract/data/map.restriction")
 
 	nodeCount := int32(len(nodes))
 	nbg := graph.NewNodeBasedGraph(nodeCount, edges)
@@ -94,4 +99,43 @@ func TestNBG(t *testing.T) {
 			}
 		}
 	}
+}
+
+func dfs(u int32, parent int32, graph *graph.EdgeBasedGraph, visit []bool, path *[]int32) {
+
+	*path = append(*path, u)
+	visit[u] = true
+
+	for _, adjEdge := range graph.GetForwardEdges(u) {
+		v := graph.GetEdgeData(adjEdge).Target
+
+		if v != parent && visit[v] == false {
+			dfs(v, u, graph, visit, path)
+			break
+		}
+	}
+}
+
+func TestEBG(t *testing.T) {
+	dataReader := files.NewReader("../extract/data/map.osm")
+	nodes := dataReader.LoadEdgeBasedNodes()
+	edges := dataReader.LoadEdgeBasedEdges()
+
+	log.Println("node count", len(nodes))
+	log.Println("edge count", len(edges))
+
+	graph := graph.NewEdgeBasedGraph(nodes, edges)
+	log.Println(graph.GetNumberOfEdges())
+
+	for u := int32(0); u < 4; u++ {
+		log.Println("forward", graph.GetForwardEdges(u))
+		log.Println("backward", graph.GetBackwardEdges(u))
+	}
+
+	path := make([]int32, 0, 100)
+	visit := make([]bool, len(nodes))
+	dfs(0, 0, graph, visit, &path)
+
+	viewFactory := view.NewViewFactory("../extract/data/map.osm")
+	viewFactory.DrawingEdges(path)
 }

@@ -105,3 +105,39 @@ func StoreTurnRestrictions(filepath string, restrictions []graph.InternalRestric
 	}
 	return nil
 }
+
+func StoreEdgeBasedNodes(filepath string, nodes []graph.EdgeBasedNode) error {
+	f, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	err = binary.Write(f, binary.LittleEndian, int32(len(nodes)))
+	if err != nil {
+		return err
+	}
+	err = binary.Write(f, binary.LittleEndian, nodes)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func StoreEdgeBasedEdges(filepath string, edges []graph.EdgeBasedEdge) error {
+	f, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	err = binary.Write(f, binary.LittleEndian, int32(len(edges)))
+	if err != nil {
+		return err
+	}
+	err = binary.Write(f, binary.LittleEndian, edges)
+	if err != nil {
+		return err
+	}
+	return nil
+}

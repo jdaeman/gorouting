@@ -68,13 +68,17 @@ func ParseOSMWay(_way osm.Object) *graph.ResultWay {
 		return nil
 	}
 
+	if len(way.Nodes) <= 1 {
+		return nil
+	} else if way.Nodes[0] == way.Nodes[len(way.Nodes)-1] {
+		// erase loop way
+		return nil
+	}
+
 	ret.Id = int64(way.ID)
 	ret.Nodes = make([]int64, 0, len(way.Nodes))
 	for _, node := range way.Nodes {
 		ret.Nodes = append(ret.Nodes, int64(node.ID))
-	}
-	if len(way.Nodes) <= 1 {
-		return nil
 	}
 
 	oneway, _ := FindTag(&way.Tags, "oneway")

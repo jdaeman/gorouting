@@ -25,6 +25,8 @@ func Run(config Config) int {
 	edgeBasedGraphFactory := NewEdgeBasedGraphFactory(nodeBasedGraphFactory)
 	edgeBasedGraphFactory.Run()
 
+	edgeBasedGraphFactory.saveResult(config.OsmPath)
+
 	// RTree
 	// SCC (?)
 
@@ -60,7 +62,8 @@ func ParseOSMData(config Config) bool {
 	// save as file.
 	extractor.PrepareData()
 
-	return true
+	ret := extractor.saveResult(config.OsmPath)
+	return ret
 }
 
 // Read osm file.

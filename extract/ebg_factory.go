@@ -1,6 +1,7 @@
 package extract
 
 import (
+	"files"
 	"graph"
 	"log"
 	"math"
@@ -89,6 +90,7 @@ func (factory *EdgeBasedGraphFactory) InsertEdgeBasedNode(u, v int32) {
 			Backward_id: mapping[edge2],
 			U:           coordId1,
 			V:           coordId2,
+			Pos:         int32(i) - 1,
 		})
 	}
 }
@@ -196,56 +198,29 @@ func (factory *EdgeBasedGraphFactory) Run() {
 	log.Println("number of edge_based_edge", len(factory.edge_based_edges))
 }
 
-// func getIncomingEdges(nbg *graph.NodeBasedGraph, via int32) []int32 {
-// 	curEdge, lastEdge := nbg.BeginEdges(via), nbg.EndEdges(via)
-// 	edges := make([]int32, 0)
+func (factory *EdgeBasedGraphFactory) saveResult(savePath string) bool {
+	dataWriter := files.NewWriter(savePath)
 
-// 	for ; curEdge < lastEdge; curEdge++ {
-// 		from := nbg.GetTarget(curEdge)
-// 		incoming := nbg.FindEdge(from, via)
+	log.Println("Save edge_based_nodes", len(factory.edge_based_nodes))
+	err := dataWriter.SaveEdgeBasedNodes(factory.edge_based_nodes)
+	if err != nil {
+		log.Println("Error", err)
+		return false
+	}
 
-// 		if !nbg.GetEdgeData(incoming).Reverse {
-// 			edges = append(edges, incoming)
-// 		}
-// 	}
-// 	return edges
-// }
+	log.Println("Save edge_based_node_segments", len(factory.edge_based_node_segments))
+	err = dataWriter.SaveEdgeBasedNodeSegments(factory.edge_based_node_segments)
+	if err != nil {
+		log.Println("Error", err)
+		return false
+	}
 
-// func getOutgoingEdges(nbg *graph.NodeBasedGraph, via int32) []int32 {
-// 	curEdge, lastEdge := nbg.BeginEdges(via), nbg.EndEdges(via)
-// 	edges := make([]int32, 0)
+	log.Println("Save edge_based_edges", len(factory.edge_based_edges))
+	err = dataWriter.SaveEdgeBasedEdges(factory.edge_based_edges)
+	if err != nil {
+		log.Println("Error", err)
+		return false
+	}
 
-// 	for ; curEdge < lastEdge; curEdge++ {
-// 		edges = append(edges, curEdge)
-// 	}
-
-// 	return edges
-// }
-
-// func isTurnAllowed(restrictions []graph.InternalRestriction, from, via, to int32) bool {
-// 	count := len(restrictions)
-// 	i := sort.Search(count, func(i int) bool {
-// 		return restrictions[i].From >= from
-// 	})
-// 	j := sort.Search(count, func(i int) bool {
-// 		return restrictions[i].From > from
-// 	})
-
-// 	for ; i < j; i++ {
-// 		restriction := &restrictions[i]
-
-// 		if restriction.Via != via {
-// 			continue
-// 		}
-
-// 		if restriction.Only {
-// 			return restriction.To == to
-// 		} else {
-// 			if restriction.To == to {
-// 				return false
-// 			}
-// 		}
-// 	}
-
-// 	return true
-// }
+	return true
+}

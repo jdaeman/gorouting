@@ -11,6 +11,9 @@ const (
 	GEOMETRY    = ".geo"
 	ANNOTATION  = ".anno"
 	RESTRICTION = ".restriction"
+	EBNODE      = ".ebnode"
+	EBEDGE      = ".ebedge"
+	EBSEG       = ".ebseg"
 )
 
 func ToDataPath(inputPath string, newExt string) string {
