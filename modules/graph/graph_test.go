@@ -102,12 +102,12 @@ func TestNBG(t *testing.T) {
 }
 
 func dfs(u int32, parent int32, graph *graph.EdgeBasedGraph, visit []bool, path *[]int32) {
-
 	*path = append(*path, u)
 	visit[u] = true
 
-	for _, adjEdge := range graph.GetForwardEdges(u) {
-		v := graph.GetEdgeData(adjEdge).Target
+	edgeRange := graph.GetForwardEdgeRange(u)
+	for edgeId := edgeRange[0]; edgeId < edgeRange[1]; edgeId++ {
+		v := graph.GetEdgeData(edgeId).Target
 
 		if v != parent && visit[v] == false {
 			dfs(v, u, graph, visit, path)
@@ -128,8 +128,10 @@ func TestEBG(t *testing.T) {
 	log.Println(graph.GetNumberOfEdges())
 
 	for u := int32(0); u < 4; u++ {
-		log.Println("forward", graph.GetForwardEdges(u))
-		log.Println("backward", graph.GetBackwardEdges(u))
+		t := graph.GetForwardEdgeRange(u)
+		log.Println("forward", t[0], t[1])
+		t = graph.GetBackwardEdgeRange(u)
+		log.Println("backward", t[0], t[1])
 	}
 
 	path := make([]int32, 0, 100)

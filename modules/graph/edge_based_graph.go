@@ -128,23 +128,25 @@ func NewEdgeBasedGraph(nodes []EdgeBasedNode, edges []EdgeBasedEdge) *EdgeBasedG
 	return edgeBasedGraph
 }
 
-func (g *EdgeBasedGraph) getEdges(u int32, forward bool) []int32 {
-	edgeRange := g.getEdgeRange(u, forward)
-	start, count := edgeRange[0], edgeRange[1]
+// degrade routing performance by copy.
+//
+// func (g *EdgeBasedGraph) getEdges(u int32, forward bool) []int32 {
+// 	edgeRange := g.getEdgeRange(u, forward)
+// 	start, count := edgeRange[0], edgeRange[1]
 
-	edges := make([]int32, 0, count)
-	for edge := start; edge < count; edge++ {
-		edges = append(edges, edge)
-	}
-	return edges
-}
+// 	edges := make([]int32, 0, count)
+// 	for edge := start; edge < count; edge++ {
+// 		edges = append(edges, edge)
+// 	}
+// 	return edges
+// }
 
 func (g *EdgeBasedGraph) getEdgeRange(u int32, forward bool) [2]int32 {
 	start, count := g.fwd_adjs[u][0], g.fwd_adjs[u][1]
 	if !forward {
 		start, count = g.rev_adjs[u][0], g.rev_adjs[u][1]
 	}
-	return [2]int32{start, start + count}
+	return [2]int32{start, start + count} // [start, start+count)
 }
 
 func (g *EdgeBasedGraph) GetForwardEdgeRange(u int32) [2]int32 {
@@ -155,13 +157,13 @@ func (g *EdgeBasedGraph) GetBackwardEdgeRange(u int32) [2]int32 {
 	return g.getEdgeRange(u, false)
 }
 
-func (g *EdgeBasedGraph) GetForwardEdges(u int32) []int32 {
-	return g.getEdges(u, true)
-}
+// func (g *EdgeBasedGraph) GetForwardEdges(u int32) []int32 {
+// 	return g.getEdges(u, true)
+// }
 
-func (g *EdgeBasedGraph) GetBackwardEdges(u int32) []int32 {
-	return g.getEdges(u, false)
-}
+// func (g *EdgeBasedGraph) GetBackwardEdges(u int32) []int32 {
+// 	return g.getEdges(u, false)
+// }
 
 func (g *EdgeBasedGraph) GetNumberOfEdges() int32 {
 	return g.number_of_edges
@@ -169,6 +171,14 @@ func (g *EdgeBasedGraph) GetNumberOfEdges() int32 {
 
 func (g *EdgeBasedGraph) GetEdgeData(edge_id int32) EdgeBasedEdge {
 	return g.edges[edge_id]
+}
+
+func (g *EdgeBasedGraph) GetTarget(edge_id int32) int32 {
+	return g.edges[edge_id].Target
+}
+
+func (g *EdgeBasedGraph) GetWeight(edge_id int32) int32 {
+	return g.edges[edge_id].Distance
 }
 
 func (g *EdgeBasedGraph) GetNumberOfNodes() int32 {

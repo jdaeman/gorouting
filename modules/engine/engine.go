@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"log"
 	"modules/files"
 	"modules/graph"
 )
@@ -49,7 +50,9 @@ func NewRoutingEngineByData(
 	geoNodes []graph.ResultNode,
 	segs []graph.EdgeBasedNodeSegment) *RoutingEngine {
 
+	log.Println("Make edge_based_graph...")
 	ebg := graph.NewEdgeBasedGraph(nodes, edges)
+	log.Println("Success!")
 	rtree := NewRTree(geoNodes, segs)
 	ret := &RoutingEngine{
 		rtree:            rtree,

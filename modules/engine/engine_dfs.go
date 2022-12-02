@@ -10,8 +10,10 @@ func (engine *RoutingEngine) dfs(visit []int32, counter *int32, u int32) {
 	*counter += 1
 	visit[u] = *counter
 
-	for _, adjEdge := range graph.GetForwardEdges(u) {
-		v := graph.GetEdgeData(adjEdge).Target
+	edgeRange := graph.GetForwardEdgeRange(u)
+
+	for edgeId := edgeRange[0]; edgeId < edgeRange[1]; edgeId++ {
+		v := graph.GetEdgeData(edgeId).Target
 
 		if visit[v] == 0 {
 			engine.dfs(visit, counter, v)

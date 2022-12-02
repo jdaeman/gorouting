@@ -1,0 +1,10 @@
+libdir=%WORkSPACE%\zlib\lib
+includedir=%WORKSPACE%\zlib\include
+
+Name: zlib
+Description: zlib compression library
+Version: 1.2.11
+
+Requires:
+Libs: -L${libdir} -lz
+Cflags: -I${includedir}

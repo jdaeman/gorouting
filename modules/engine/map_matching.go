@@ -1,7 +1,10 @@
 package engine
 
 import (
+	"fmt"
+	"log"
 	"modules/graph"
+	"modules/util"
 
 	"github.com/dhconnelly/rtreego"
 )
@@ -30,9 +33,12 @@ func NewRTree(nodes []graph.ResultNode, segments []graph.EdgeBasedNodeSegment) *
 		return nil
 	}
 
-	rt := rtreego.NewTree(2, 25, 50)
+	log.Println("Start RTree build...")
+	percent := make([]bool, 10)
 
-	for _, seg := range segments {
+	rt := rtreego.NewTree(2, 15, 30)
+
+	for i, seg := range segments {
 		fwd, rev := seg.Forward_id, seg.Backward_id
 		coord_u, coord_v := seg.U, seg.V
 		fwdPos := seg.Pos
@@ -52,7 +58,18 @@ func NewRTree(nodes []graph.ResultNode, segments []graph.EdgeBasedNodeSegment) *
 				fwd: fwd, rev: rev,
 				fwdPos: fwdPos}},
 		)
+
+		progress := int((float64(i+1) / float64(len(segments))) * 100.)
+		progress %= 10
+		if !percent[progress] {
+			fmt.Printf("%d%%... ", progress*10)
+			percent[progress] = true
+		}
+		if percent[9] {
+			fmt.Println()
+		}
 	}
+	log.Println("\nSuccess!")
 
 	ret := &RTree{tree: rt}
 	return ret
@@ -75,11 +92,11 @@ func (rtree *RTree) GetPhantomNodes(coords [][2]float64) []PhantomNode {
 		rect, seg := node.where, node.seg
 		mx, my := rect.PointCoord(0), rect.PointCoord(1)
 
-		// dist := util.HaversineDistance([2]float64{x, y}, [2]float64{mx, my})
-		// if dist > 1000 {
-		// 	// too far distance...
-		// 	break
-		// }
+		dist := util.HaversineDistance([2]float64{x, y}, [2]float64{mx, my})
+		if dist > 1000 {
+			// too far distance...
+			break
+		}
 
 		phantom := PhantomNode{
 			ForwardId:   seg.fwd,

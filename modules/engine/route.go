@@ -8,6 +8,7 @@ import (
 
 type RouteParameter struct {
 	Coords [][2]float64 // [x,y];[x,y]...
+	Steps  bool
 }
 
 func toNodeList(phatom PhantomNode) []int32 {
@@ -41,7 +42,6 @@ func Route(repository *files.DataRepository, engine *RoutingEngine, params Route
 		errMsg := fmt.Sprint("Map matching error coordinate index ", len(phantomNodes))
 		return errors.New(errMsg)
 	}
-
 	routePath := make([]int32, 0)
 
 	// route
@@ -61,6 +61,6 @@ func Route(repository *files.DataRepository, engine *RoutingEngine, params Route
 	}
 
 	// prepare data
-	*result = MakeRouteResponse(repository, phantomNodes, routePath)
+	*result = MakeRouteResponse(repository, phantomNodes, routePath, params.Steps)
 	return nil
 }

@@ -4,8 +4,10 @@ import (
 	"context"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/paulmach/osm"
+	"github.com/paulmach/osm/osmpbf"
 	"github.com/paulmach/osm/osmxml"
 )
 
@@ -79,11 +81,22 @@ func ReadOSM(filePath string) ([]osm.Objects, error) {
 	ways := make(osm.Objects, 0, BUFFER_WAY)
 	relations := make(osm.Objects, 0, BUFFER_RELATION)
 
-	scanner := osmxml.New(context.Background(), f)
-	defer scanner.Close()
+	var osmScanner interface{}
+	// pbfScanner := true
+	if filepath.Ext(filePath) == ".osm" {
+		scanner := osmxml.New(context.Background(), f)
+		osmScanner = scanner
+		// pbfScanner = false
+	} else {
+		scanner := osmpbf.New(context.Background(), f, 4)
+		osmScanner = scanner
+	}
+
+	scanner := osmScanner.(*osmpbf.Scanner)
 
 	for scanner.Scan() {
 		o := scanner.Object()
+		//fmt.Println(o)
 
 		switch o.ObjectID().Type() {
 		case osm.TypeNode:

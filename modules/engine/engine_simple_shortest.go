@@ -46,10 +46,15 @@ func (engine *RoutingEngine) SimplePathSearch(s, g int32) []int32 {
 
 	for fwdHeap.Len() > 0 {
 		curNode := heap.Pop(fwdHeap).(HeapNode)
+		if curNode.u == g {
+			break
+		}
 
 		u, weight := curNode.u, curNode.weight
-		for _, adjEdge := range ebg.GetForwardEdges(u) {
-			edge := ebg.GetEdgeData(adjEdge)
+		edgeRange := ebg.GetForwardEdgeRange(u)
+
+		for edgeId := edgeRange[0]; edgeId < edgeRange[1]; edgeId++ {
+			edge := ebg.GetEdgeData(edgeId)
 			v, nextWeight := edge.Target, edge.Distance
 
 			if weight+nextWeight < costTable[v] {
