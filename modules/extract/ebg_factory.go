@@ -187,10 +187,13 @@ func (factory *EdgeBasedGraphFactory) GenerateEdgeExpandedEdges() {
 }
 
 func (factory *EdgeBasedGraphFactory) Run() {
+	log.Println("Label edge_based_node id")
 	number_of_edge_based_node := factory.LabelEdgeBasedNodes()
 	factory.number_of_edge_based_nodes = number_of_edge_based_node
 
+	log.Println("Create edge_based_nodes")
 	factory.GenerateEdgeExpandedNodes()
+	log.Println("Create edge_based_edges")
 	factory.GenerateEdgeExpandedEdges()
 
 	log.Println("number of edge_based_node", len(factory.edge_based_nodes))

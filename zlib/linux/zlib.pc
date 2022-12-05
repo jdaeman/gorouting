@@ -1,0 +1,10 @@
+includedir=/usr/include
+libdir=/usr/lib/x86_64-linux-gnu
+
+Name: zlib
+Description: zlib compression library
+Version: 1.2.11
+
+Requires:
+Libs: -L${libdir} -lz
+Cflags: -I${includedir}
