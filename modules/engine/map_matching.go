@@ -65,11 +65,9 @@ func NewRTree(nodes []graph.ResultNode, segments []graph.EdgeBasedNodeSegment) *
 			fmt.Printf("%d%%... ", progress*10)
 			percent[progress] = true
 		}
-		if percent[9] {
-			fmt.Println()
-		}
 	}
-	log.Println("\nSuccess!")
+	fmt.Println("100%")
+	log.Println("Success!")
 
 	ret := &RTree{tree: rt}
 	return ret

@@ -1,0 +1,43 @@
+
+version: "3"
+
+# Define network
+networks:
+  mynetwork:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 171.168.10.0/24
+          ip_range: 171.168.10.0/24
+          gateway: 171.168.10.1
+
+services:
+  routing:
+    image: route-backend:1
+    container_name: routing
+    ports:
+      - 12345:5000
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
+    networks:
+      mynetwork:
+        ipv4_address: 171.168.10.22
+    # wsl disk slow...
+    # volumes:
+    #   - ${pbfdata}:/data
+    # command: bash -c "ls /data && routed -d /data/south-korea-latest.osm.pbf -p 8000"
+
+  front:
+    image: osrm-frontend:latest
+    ports:
+      - 12346:9966
+    container_name: frontend
+    networks:
+      mynetwork:
+        ipv4_address: 171.168.10.23
+    extra_hosts:
+      RoutingServer: 171.168.10.22
+    environment:
+      - OSRM_BACKEND=http://localhost:12345
+    depends_on:
+      - routing

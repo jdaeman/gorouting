@@ -2,6 +2,7 @@ FROM ubuntu:18.04 as builder
 
 # --progress string
 
+RUN sed -i "s/archive.ubuntu.com/mirror.kakao.com/g" /etc/apt/sources.list
 RUN apt-get update 
 RUN apt-get install -y wget libzip-dev pkg-config
 
@@ -26,6 +27,7 @@ FROM ubuntu:18.04 as runstage
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Seoul
 
+RUN sed -i "s/archive.ubuntu.com/mirror.kakao.com/g" /etc/apt/sources.list
 RUN apt-get update && \
     apt-get install -y wget
 
